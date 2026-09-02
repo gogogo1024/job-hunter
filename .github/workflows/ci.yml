@@ -73,15 +73,15 @@ jobs:
 
       - name: Run DB migrations
         env:
-          DATABASE_URL: postgresql://job_hunter:job_hunter@localhost:5432/job_hunter
+          DATABASE_URL: postgresql://job_hunter:job_hunter@127.0.0.1:5432/job_hunter
         run: |
           set -euo pipefail
-          echo "PNPM_HOME=$PNPM_HOME"
+          echo "PNPM_HOME=${PNPM_HOME:-}"
           which pnpm || true
           pnpm --version || true
           pnpm --filter @job-hunter/db db:generate
-          # run drizzle migrate with verbose logging to capture errors
-          pnpm --filter @job-hunter/db db:migrate -- --loglevel debug || (
+          # run drizzle migrate (don't forward extra args that confuse the CLI)
+          pnpm --filter @job-hunter/db db:migrate || (
             echo 'drizzle-kit migrate failed; printing environment and connection info';
             env | sort;
             echo 'Attempting psql connection check:';
