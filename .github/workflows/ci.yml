@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: job_hunter
+          POSTGRES_USER: job_hunter
+          POSTGRES_PASSWORD: job_hunter
+        options: >-
+          --health-cmd "pg_isready -U job_hunter -d job_hunter"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 10
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Wait for Postgres
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y postgresql-client
+          for i in {1..30}; do
+            pg_isready -h localhost -p 5432 -U job_hunter -d job_hunter && break || sleep 1
+          done
+
+      - name: Run DB migrations
+        env:
+          DATABASE_URL: postgresql://job_hunter:job_hunter@localhost:5432/job_hunter
+        run: |
+          pnpm --filter @job-hunter/db db:generate
+          pnpm --filter @job-hunter/db db:migrate
+
+      - name: Run tests
+        env:
+          DATABASE_URL: postgresql://job_hunter:job_hunter@localhost:5432/job_hunter
+        run: pnpm -w -r test --silent
