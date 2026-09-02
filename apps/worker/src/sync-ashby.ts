@@ -100,7 +100,7 @@ try {
     const perJobSuspicious = (job as any).__suspicious === true;
     if (perJobSuspicious) (job as any).__quarantine = true;
 
-    const result = await upsertJob(job);
+    const result = await upsertJob(job, runId);
     if (result.changed) changed += 1;
 
     processed += 1;
@@ -122,9 +122,9 @@ try {
   }
 
   let closed = 0;
-  if (!isSuspicious) {
+    if (!isSuspicious) {
     // Mark missing old jobs as closed (for this board)
-    closed = await closeMissingJobs("ashby", board, seenExternalIds);
+    closed = await closeMissingJobs("ashby", board, seenExternalIds, new Date(), runId);
   } else {
     console.error(`Ashby sync flagged as SUSPICIOUS (predictedChanged=${predictedChanged}, total=${total}, ratio=${predictedRatio.toFixed(2)}). Skipping auto-close.`);
   }
