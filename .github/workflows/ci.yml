@@ -32,10 +32,14 @@ jobs:
         uses: pnpm/action-setup@v2
         with:
           version: 10
+        env:
+          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: 'true'
 
       - name: Ensure pnpm CLI available (fallback)
         run: |
           set -e
+          # Install postgresql-client for pg_isready
+          apt-get update -y && apt-get install -y postgresql-client || true
           if ! command -v pnpm >/dev/null 2>&1; then
             echo "pnpm not found, installing via npm (global)"
             npm install -g pnpm@10
@@ -48,13 +52,11 @@ jobs:
       - name: Wait for Postgres
         run: |
           set -e
-          sudo apt-get update -y
-          sudo apt-get install -y postgresql-client
           for i in {1..120}; do
-            # Try to connect to localhost (not 127.0.0.1) and check superuser postgres
-            if pg_isready -h localhost -p 5432 -U postgres >/dev/null 2>&1; then
+            # In GitHub Actions, services are accessed via their service name in the services block
+            if pg_isready -h postgres -p 5432 -U postgres >/dev/null 2>&1; then
               echo "Postgres is ready"
-              psql "postgresql://job_hunter:job_hunter@localhost:5432/job_hunter" -c 'SELECT version();' || true
+              psql "postgresql://job_hunter:job_hunter@postgres:5432/job_hunter" -c 'SELECT version();' || true
               exit 0
             fi
             echo "Waiting for Postgres... ($i/120)"
@@ -63,22 +65,14 @@ jobs:
           echo "Postgres did not become available after 120 seconds"
           echo "Debug info:"
           echo "Attempting pg_isready with different options..."
-          pg_isready -h localhost -p 5432 -U postgres || true
-          pg_isready -h 127.0.0.1 -p 5432 -U postgres || true
-          echo "Docker ps:"
-          docker ps -a || true
-          echo "Docker logs (tail 200 for postgres container):"
-          cid=$(docker ps -a --filter ancestor=postgres:15 -q | head -n1 || true)
-          if [ -n "$cid" ]; then
-            docker logs --tail 200 "$cid" || true
-          else
-            echo "no postgres container found"
-          fi
+          pg_isready -h postgres -p 5432 -U postgres -v || true
+          echo "Docker container status:"
+          docker ps -a --filter ancestor=postgres:15 || true
           exit 1
 
       - name: Run DB migrations
         env:
-          DATABASE_URL: postgresql://job_hunter:job_hunter@localhost:5432/job_hunter
+          DATABASE_URL: postgresql://job_hunter:job_hunter@postgres:5432/job_hunter
         run: |
           set -euo pipefail
           echo "PNPM_HOME=${PNPM_HOME:-}"
@@ -96,5 +90,5 @@ jobs:
 
       - name: Run tests
         env:
-          DATABASE_URL: postgresql://job_hunter:job_hunter@localhost:5432/job_hunter
+          DATABASE_URL: postgresql://job_hunter:job_hunter@postgres:5432/job_hunter
         run: pnpm -w -r test --silent
