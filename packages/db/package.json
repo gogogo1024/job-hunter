@@ -1,6 +1,9 @@
 {
   "name": "@job-hunter/db",
   "private": true,
+  "engines": {
+    "node": ">=24"
+  },
   "type": "module",
   "scripts": {
     "db:generate": "drizzle-kit generate",
