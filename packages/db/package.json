@@ -1,0 +1,21 @@
+{
+  "name": "@job-hunter/db",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@job-hunter/shared": "workspace:*",
+    "drizzle-orm": "latest",
+    "dotenv": "latest",
+    "postgres": "latest"
+  },
+  "devDependencies": {
+    "drizzle-kit": "latest",
+    "typescript": "latest"
+  },
+  "exports": { ".": "./src/index.ts" }
+}

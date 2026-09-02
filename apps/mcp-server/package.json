@@ -1,0 +1,21 @@
+{
+  "name": "@job-hunter/mcp-server",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@job-hunter/db": "workspace:*",
+    "@job-hunter/domain": "workspace:*",
+    "@job-hunter/schema": "workspace:*",
+    "@modelcontextprotocol/server": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "tsx": "latest",
+    "typescript": "latest",
+    "drizzle-orm": "latest"
+  }
+}

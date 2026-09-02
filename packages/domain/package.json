@@ -1,0 +1,8 @@
+{
+  "name": "@job-hunter/domain",
+  "private": true,
+  "type": "module",
+  "scripts": { "typecheck": "tsc --noEmit" },
+  "dependencies": { "@job-hunter/shared": "workspace:*", "@job-hunter/db": "workspace:*" },
+  "exports": { ".": "./src/index.ts" }
+}
