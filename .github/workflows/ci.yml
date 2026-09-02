@@ -64,20 +64,20 @@ jobs:
       - name: Run DB migrations
         env:
           DATABASE_URL: postgresql://job_hunter:job_hunter@localhost:5432/job_hunter
-          run: |
-            set -euo pipefail
-            echo "PNPM_HOME=$PNPM_HOME"
-            which pnpm || true
-            pnpm --version || true
-            pnpm --filter @job-hunter/db db:generate
-            # run drizzle migrate with verbose logging to capture errors
-            pnpm --filter @job-hunter/db db:migrate -- --loglevel debug || (
-              echo 'drizzle-kit migrate failed; printing environment and connection info';
-              env | sort;
-              echo 'Attempting psql connection check:';
-              psql "${DATABASE_URL}" -c 'SELECT 1' || true;
-              exit 1
-            )
+        run: |
+          set -euo pipefail
+          echo "PNPM_HOME=$PNPM_HOME"
+          which pnpm || true
+          pnpm --version || true
+          pnpm --filter @job-hunter/db db:generate
+          # run drizzle migrate with verbose logging to capture errors
+          pnpm --filter @job-hunter/db db:migrate -- --loglevel debug || (
+            echo 'drizzle-kit migrate failed; printing environment and connection info';
+            env | sort;
+            echo 'Attempting psql connection check:';
+            psql "${DATABASE_URL}" -c 'SELECT 1' || true;
+            exit 1
+          )
 
       - name: Run tests
         env:
