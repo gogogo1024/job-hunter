@@ -47,18 +47,37 @@ jobs:
 
       - name: Wait for Postgres
         run: |
+          set -e
           sudo apt-get update -y
           sudo apt-get install -y postgresql-client
-          for i in {1..30}; do
-            pg_isready -h localhost -p 5432 -U job_hunter -d job_hunter && break || sleep 1
+          for i in {1..60}; do
+            if pg_isready -h localhost -p 5432 -U job_hunter -d job_hunter >/dev/null 2>&1; then
+              echo "Postgres is ready"
+              exit 0
+            fi
+            echo "Waiting for Postgres... ($i/60)"
+            sleep 1
           done
+          echo "Postgres did not become available after 60 seconds"
+          exit 1
 
       - name: Run DB migrations
         env:
           DATABASE_URL: postgresql://job_hunter:job_hunter@localhost:5432/job_hunter
-        run: |
-          pnpm --filter @job-hunter/db db:generate
-          pnpm --filter @job-hunter/db db:migrate
+          run: |
+            set -euo pipefail
+            echo "PNPM_HOME=$PNPM_HOME"
+            which pnpm || true
+            pnpm --version || true
+            pnpm --filter @job-hunter/db db:generate
+            # run drizzle migrate with verbose logging to capture errors
+            pnpm --filter @job-hunter/db db:migrate -- --loglevel debug || (
+              echo 'drizzle-kit migrate failed; printing environment and connection info';
+              env | sort;
+              echo 'Attempting psql connection check:';
+              psql "${DATABASE_URL}" -c 'SELECT 1' || true;
+              exit 1
+            )
 
       - name: Run tests
         env:
