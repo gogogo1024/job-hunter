@@ -29,16 +29,10 @@ jobs:
           node-version: '24'
           cache: 'pnpm'
 
-      - name: Ensure pnpm (Corepack + fallback)
-        run: |
-          set -e
-          corepack enable || true
-          corepack prepare pnpm@10 --activate || true
-          if ! command -v pnpm >/dev/null 2>&1; then
-            echo "pnpm not found, installing via npm (global)"
-            npm install -g pnpm@10
-          fi
-          pnpm --version
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 10
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
