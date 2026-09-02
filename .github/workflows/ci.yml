@@ -34,6 +34,15 @@ jobs:
         with:
           version: 10
 
+      - name: Ensure pnpm CLI available (fallback)
+        run: |
+          set -e
+          if ! command -v pnpm >/dev/null 2>&1; then
+            echo "pnpm not found, installing via npm (global)"
+            npm install -g pnpm@10
+          fi
+          pnpm --version
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
