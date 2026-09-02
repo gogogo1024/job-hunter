@@ -55,11 +55,10 @@ jobs:
         run: |
           set -e
           for i in {1..120}; do
-            # In GitHub Actions, services are accessed via their service name in the services block
-            # Use the same credentials as the service configuration (job_hunter user)
-            if pg_isready -h postgres -p 5432 -U job_hunter >/dev/null 2>&1; then
+            # In GitHub Actions with ports mapping, services are accessed via localhost
+            if pg_isready -h localhost -p 5432 -U job_hunter >/dev/null 2>&1; then
               echo "Postgres is ready"
-              psql "postgresql://job_hunter:job_hunter@postgres:5432/job_hunter" -c 'SELECT version();' || true
+              psql "postgresql://job_hunter:job_hunter@localhost:5432/job_hunter" -c 'SELECT version();' || true
               exit 0
             fi
             echo "Waiting for Postgres... ($i/120)"
@@ -68,14 +67,14 @@ jobs:
           echo "Postgres did not become available after 120 seconds"
           echo "Debug info:"
           echo "Attempting pg_isready with different options..."
-          PGPASSWORD=job_hunter pg_isready -h postgres -p 5432 -U job_hunter -v || true
+          PGPASSWORD=job_hunter pg_isready -h localhost -p 5432 -U job_hunter -v || true
           echo "Docker container status:"
           docker ps -a --filter ancestor=postgres:15 || true
           exit 1
 
       - name: Run DB migrations
         env:
-          DATABASE_URL: postgresql://job_hunter:job_hunter@postgres:5432/job_hunter
+          DATABASE_URL: postgresql://job_hunter:job_hunter@localhost:5432/job_hunter
         run: |
           set -euo pipefail
           echo "PNPM_HOME=${PNPM_HOME:-}"
@@ -93,5 +92,5 @@ jobs:
 
       - name: Run tests
         env:
-          DATABASE_URL: postgresql://job_hunter:job_hunter@postgres:5432/job_hunter
+          DATABASE_URL: postgresql://job_hunter:job_hunter@localhost:5432/job_hunter
         run: pnpm -w -r test --silent
