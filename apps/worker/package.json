@@ -1,0 +1,18 @@
+{
+  "name": "@job-hunter/worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync:ashby": "tsx src/sync-ashby.ts",
+    "quarantine:review": "tsx src/quarantine-review.ts"
+  },
+  "dependencies": {
+    "@job-hunter/db": "workspace:*",
+    "@job-hunter/integrations": "workspace:*",
+    "dotenv": "latest"
+  },
+  "devDependencies": {
+    "tsx": "latest",
+    "typescript": "latest"
+  }
+}

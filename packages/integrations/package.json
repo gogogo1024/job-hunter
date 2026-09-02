@@ -1,0 +1,14 @@
+{
+  "name": "@job-hunter/integrations",
+  "private": true,
+  "type": "module",
+  "scripts": { "typecheck": "tsc --noEmit", "test": "vitest" },
+  "devDependencies": {
+    "vitest": "latest"
+  },
+  "dependencies": {
+    "@job-hunter/shared": "workspace:*",
+    "@job-hunter/schema": "workspace:*"
+  },
+  "exports": { ".": "./src/index.ts" }
+}

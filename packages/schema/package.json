@@ -1,0 +1,8 @@
+{
+  "name": "@job-hunter/schema",
+  "private": true,
+  "type": "module",
+  "scripts": { "typecheck": "tsc --noEmit" },
+  "dependencies": { "zod": "latest", "@job-hunter/shared": "workspace:*" },
+  "exports": { ".": "./src/index.ts" }
+}

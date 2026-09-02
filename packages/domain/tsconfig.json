@@ -1,0 +1,5 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "types": ["node"], "paths": { "@job-hunter/db": ["../db/src"], "@job-hunter/db/*": ["../db/src/*"], "*": ["./*"] } },
+  "include": ["src/**/*.ts", "*.ts"]
+}
