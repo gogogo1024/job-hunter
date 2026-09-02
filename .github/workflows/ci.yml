@@ -54,7 +54,8 @@ jobs:
           set -e
           for i in {1..120}; do
             # In GitHub Actions, services are accessed via their service name in the services block
-            if pg_isready -h postgres -p 5432 -U postgres >/dev/null 2>&1; then
+            # Use the same credentials as the service configuration (job_hunter user)
+            if pg_isready -h postgres -p 5432 -U job_hunter >/dev/null 2>&1; then
               echo "Postgres is ready"
               psql "postgresql://job_hunter:job_hunter@postgres:5432/job_hunter" -c 'SELECT version();' || true
               exit 0
@@ -65,7 +66,7 @@ jobs:
           echo "Postgres did not become available after 120 seconds"
           echo "Debug info:"
           echo "Attempting pg_isready with different options..."
-          pg_isready -h postgres -p 5432 -U postgres -v || true
+          PGPASSWORD=job_hunter pg_isready -h postgres -p 5432 -U job_hunter -v || true
           echo "Docker container status:"
           docker ps -a --filter ancestor=postgres:15 || true
           exit 1
