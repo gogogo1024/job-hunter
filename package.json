@@ -2,6 +2,9 @@
   "name": "job-hunter",
   "private": true,
   "packageManager": "pnpm@10.10.0",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",
