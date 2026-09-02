@@ -59,6 +59,8 @@ export const jobSnapshots = pgTable(
     contentHash: varchar("content_hash", { length: 128 }).notNull(),
     raw: jsonb("raw").notNull().$type<Record<string, unknown>>(),
     changed: boolean("changed").notNull(),
+    // Associate a snapshot to the sync run that produced it (nullable)
+    syncRunId: varchar("sync_run_id", { length: 255 }),
   },
   (table) => [
     index("job_snapshots_job_fetched_idx").on(table.jobId, table.fetchedAt),
@@ -96,6 +98,8 @@ export const jobSnapshotDiffs = pgTable(
     jobSnapshotId: varchar("job_snapshot_id", { length: 255 }).notNull(),
     jobId: varchar("job_id", { length: 255 }).notNull(),
     diff: jsonb("diff").notNull().$type<Record<string, unknown>>(),
+    // Optional link back to the sync run that produced this diff
+    syncRunId: varchar("sync_run_id", { length: 255 }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

@@ -1,4 +1,4 @@
-import { and, eq, not, inArray } from "drizzle-orm";
+import { and, eq, not, inArray, sql } from "drizzle-orm";
 import type { WorkMode, JobLevel } from "@job-hunter/shared";
 import type { InferInsertModel } from "drizzle-orm";
 import { db } from "./client.js";
@@ -36,6 +36,7 @@ export function canonicalizeJobForHash(jobLike: any) {
     }
     return "";
   })();
+
   const canonicalDescription = normalizeText(preferredDescCandidate ?? "");
   const canonicalUrl = (jobLike.url ?? "").toString().replace(/\/?$/, "");
 
@@ -97,7 +98,7 @@ function jobToRaw(job: Job): Record<string, unknown> {
   return JSON.parse(JSON.stringify(job));
 }
 
-export async function upsertJob(job: Job): Promise<{ changed: boolean }> {
+export async function upsertJob(job: Job, syncRunId?: string): Promise<{ changed: boolean }> {
   const now = new Date();
   const existing = await db
     .select({ contentHash: jobs.contentHash })
@@ -109,7 +110,20 @@ export async function upsertJob(job: Job): Promise<{ changed: boolean }> {
 
   const contentHash = hashJobContent(job);
   const existingContentHash = (existing[0] as { contentHash?: string } | undefined)?.contentHash ?? null;
-  const changed = existing.length === 0 || existingContentHash !== contentHash;
+
+  // If there's an existing jobs row, fetch its raw BEFORE we perform the upsert/update
+  // so we can compute a proper "before" state for snapshot diffs. Previously the
+  // code fetched the previous raw after doing the upsert which returned the new
+  // value and therefore produced no diffs.
+  let prevRawFromJobs: Record<string, any> | null = null;
+  if (existing.length > 0) {
+    const prevRows = await db
+      .select({ raw: jobs.raw })
+      .from(jobs)
+      .where(and(eq(jobs.source, job.source), eq(jobs.externalId, job.externalId)))
+      .limit(1);
+    if (prevRows.length > 0) prevRawFromJobs = (prevRows[0] as any).raw ?? null;
+  }
 
   // Determine preferred description to persist: prefer `descriptionText` or `description`,
   // then look into original/raw payload's `descriptionPlain`/`descriptionText`,
@@ -125,6 +139,14 @@ export async function upsertJob(job: Job): Promise<{ changed: boolean }> {
     }
     return String((job as any).description ?? "");
   })();
+
+  const prevComputedHash = prevRawFromJobs ? hashJobContent(prevRawFromJobs as any) : existingContentHash;
+  const changed = existing.length === 0 || prevComputedHash !== contentHash;
+
+  // Compute whether this job changed by comparing the previous stored raw
+  // (prefetched in the caller) to the new content hash. The actual
+  // prefetched raw is set inside `upsertJob` and will be used there; we
+  // keep this here as a placeholder comment only.
 
   const insertObj: JobInsert = {
     id: job.id,
@@ -196,7 +218,11 @@ export async function upsertJob(job: Job): Promise<{ changed: boolean }> {
     jobId: job.id,
     contentHash,
     raw: jobToRaw(job),
+    // `changed` should be determined by comparing the previous canonicalized raw
+    // (if available) to the new canonicalized payload. We'll compute it below
+    // after we've prefetched the previous raw from `jobs`.
     changed,
+    syncRunId: syncRunId ?? null,
   };
 
   await db.insert(jobSnapshots).values(snapshot);
@@ -207,35 +233,54 @@ export async function upsertJob(job: Job): Promise<{ changed: boolean }> {
     const prev = existing[0] as { contentHash?: string } | undefined;
     const prevCanonical = prev ? null : null; // placeholder, retrieving previous canonical would require fetching raw; skip when no previous
     const newCanonical = canonicalizeJobForHash(job);
-    // If there was a previous row, try to fetch its raw to compute a diff
+    // If there was a previous row, use the previously-prefetched `prevRawFromJobs`
+    // (fetched before the upsert) to compute a stable diff. If that prefetch
+    // didn't exist for some reason, fall back to reading the jobs.raw value.
     if (existing.length > 0) {
-      const prevRows = await db.select({ raw: jobs.raw }).from(jobs).where(and(eq(jobs.source, job.source), eq(jobs.externalId, job.externalId))).limit(1);
-      if (prevRows.length > 0) {
-        try {
-          // compute simple key diffs
-          const prevRaw = prevRows[0]?.raw as Record<string, any> | undefined;
-          if (prevRaw) {
-            const prevCan = canonicalizeJobForHash(prevRaw);
-            const diffs: Record<string, { before: any; after: any }> = {};
-            for (const k of Object.keys(newCanonical)) {
-              const a = JSON.stringify((prevCan as any)[k] ?? null);
-              const b = JSON.stringify((newCanonical as any)[k] ?? null);
-              if (a !== b) diffs[k] = { before: JSON.parse(a), after: JSON.parse(b) };
-            }
-            if (Object.keys(diffs).length > 0) {
-              const diffRow: JobSnapshotDiffInsert = {
-                id: `${snapshot.id}:diff`,
-                jobSnapshotId: snapshot.id,
-                jobId: job.id,
-                diff: diffs as unknown as Record<string, unknown>,
-                createdAt: new Date(),
-              };
-              await db.insert(jobSnapshotDiffs).values(diffRow);
-            }
-          }
-        } catch (err) {
-          // best-effort; swallow diff errors
+      try {
+        let prevRaw: Record<string, any> | undefined = undefined;
+        if (prevRawFromJobs) {
+          prevRaw = prevRawFromJobs;
+        } else {
+          const prevRows2 = await db.select({ raw: jobs.raw }).from(jobs).where(and(eq(jobs.source, job.source), eq(jobs.externalId, job.externalId))).limit(1);
+          if (prevRows2.length > 0) prevRaw = prevRows2[0]?.raw as Record<string, any> | undefined;
         }
+
+        // Debugging: log whether we have a prevRaw and the hashes involved so we can
+        // diagnose why diffs are not being created in the sync path.
+        try {
+          // eslint-disable-next-line no-console
+          console.debug(`[db-debug] computeDiff jobId=${job.id} hasPrevRaw=${!!prevRaw} existingContentHash=${(existing[0] as any)?.contentHash ?? null} newContentHash=${contentHash} shouldUpdateMain=${shouldUpdateMain}`);
+        } catch {}
+
+        if (prevRaw) {
+          const prevCan = canonicalizeJobForHash(prevRaw);
+          const diffs: Record<string, { before: any; after: any }> = {};
+          for (const k of Object.keys(newCanonical)) {
+            const a = JSON.stringify((prevCan as any)[k] ?? null);
+            const b = JSON.stringify((newCanonical as any)[k] ?? null);
+            if (a !== b) diffs[k] = { before: JSON.parse(a), after: JSON.parse(b) };
+          }
+
+          try {
+            // eslint-disable-next-line no-console
+            console.debug(`[db-debug] computeDiff jobId=${job.id} diffsCount=${Object.keys(diffs).length} diffsKeys=${Object.keys(diffs).join(",")}`);
+          } catch {}
+
+          if (Object.keys(diffs).length > 0) {
+            const diffRow: JobSnapshotDiffInsert = {
+              id: `${snapshot.id}:diff`,
+              jobSnapshotId: snapshot.id,
+              jobId: job.id,
+              diff: diffs as unknown as Record<string, unknown>,
+              syncRunId: syncRunId ?? null,
+              createdAt: new Date(),
+            };
+            await db.insert(jobSnapshotDiffs).values(diffRow);
+          }
+        }
+      } catch (err) {
+        // best-effort; swallow diff errors
       }
     }
   } catch (err) {
@@ -245,19 +290,38 @@ export async function upsertJob(job: Job): Promise<{ changed: boolean }> {
   return { changed };
 }
 
-export async function closeMissingJobs(source: Job["source"], board: string, presentExternalIds: string[], when: Date = new Date()): Promise<number> {
-  // If no ids were provided, close all non-closed jobs for the source+board in one update
+export async function closeMissingJobs(
+  source: Job["source"],
+  board: string,
+  presentExternalIds: string[],
+  when: Date = new Date(),
+  syncRunId?: string,
+): Promise<number> {
+  // Select rows that will be closed so we can record snapshots/diffs for audit.
+  let toCloseRows: Array<{ id: string; raw: Record<string, unknown> | null; contentHash?: string | null; status?: string | null }> = [];
   if (presentExternalIds.length === 0) {
-    const updated = await db
-      .update(jobs)
-      .set({ status: "closed", lastSeenAt: when, lastChangedAt: when })
-      .where(and(eq(jobs.source, source), eq(jobs.company, board), not(eq(jobs.status, "closed"))))
-      .returning({ id: jobs.id });
-    return updated.length;
+    toCloseRows = await db
+      .select({ id: jobs.id, raw: jobs.raw, contentHash: jobs.contentHash, status: jobs.status })
+      .from(jobs)
+      .where(and(eq(jobs.source, source), eq(jobs.company, board), not(eq(jobs.status, "closed"))));
+  } else {
+    toCloseRows = await db
+      .select({ id: jobs.id, raw: jobs.raw, contentHash: jobs.contentHash, status: jobs.status })
+      .from(jobs)
+      .where(
+        and(
+          eq(jobs.source, source),
+          eq(jobs.company, board),
+          not(eq(jobs.status, "closed")),
+          not(inArray(jobs.externalId, presentExternalIds)),
+        ),
+      );
   }
 
-  // Bulk close jobs for the given source+board whose externalId is NOT IN the presentExternalIds list
-  const updated = await db
+  if (toCloseRows.length === 0) return 0;
+
+  // Perform the update to mark them closed
+  await db
     .update(jobs)
     .set({ status: "closed", lastSeenAt: when, lastChangedAt: when })
     .where(
@@ -265,12 +329,40 @@ export async function closeMissingJobs(source: Job["source"], board: string, pre
         eq(jobs.source, source),
         eq(jobs.company, board),
         not(eq(jobs.status, "closed")),
-        not(inArray(jobs.externalId, presentExternalIds)),
+        presentExternalIds.length === 0 ? sql`TRUE` : not(inArray(jobs.externalId, presentExternalIds)),
       ),
-    )
-    .returning({ id: jobs.id });
+    );
 
-  return updated.length;
+  // For each closed job, write a snapshot and a simple diff indicating status change
+  for (const r of toCloseRows) {
+    try {
+      const snapId = `${r.id}:${when.toISOString()}`;
+      const snapshot: JobSnapshotInsert = {
+        id: snapId,
+        jobId: r.id,
+        contentHash: r.contentHash ?? "",
+        raw: (r.raw as Record<string, unknown>) ?? {},
+        changed: true,
+        syncRunId: syncRunId ?? null,
+        fetchedAt: when,
+      } as any;
+      await db.insert(jobSnapshots).values(snapshot);
+
+      const diffRow: JobSnapshotDiffInsert = {
+        id: `${snapId}:closed:diff`,
+        jobSnapshotId: snapId,
+        jobId: r.id,
+        diff: { status: { before: r.status ?? "unknown", after: "closed" } } as unknown as Record<string, unknown>,
+        syncRunId: syncRunId ?? null,
+        createdAt: when,
+      } as any;
+      await db.insert(jobSnapshotDiffs).values(diffRow);
+    } catch (err) {
+      // best-effort; don't fail the closing operation for audit insertion problems
+    }
+  }
+
+  return toCloseRows.length;
 }
 
 export async function getJobsContentHashes(source: Job["source"], board: string, externalIds: string[]): Promise<Record<string, string | null>> {
@@ -318,6 +410,7 @@ export async function createSyncRun(source: Job["source"], board: string, starte
     fetchedCount: 0,
     changedCount: 0,
     closedCount: 0,
+    // anomaly detection fields
     isSuspicious: false,
     anomalyScore: 0,
     error: null,
