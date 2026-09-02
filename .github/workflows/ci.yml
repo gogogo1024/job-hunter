@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: job_hunter
+          POSTGRES_USER: job_hunter
+          POSTGRES_PASSWORD: job_hunter
+        options: >-
+          --health-cmd "pg_isready -U job_hunter -d job_hunter"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 10
+
+      - name: Ensure pnpm CLI available (fallback)
+        run: |
+          set -e
+          if ! command -v pnpm >/dev/null 2>&1; then
+            echo "pnpm not found, installing via npm (global)"
+            npm install -g pnpm@10
+          fi
+          pnpm --version
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Wait for Postgres
+        run: |
+          set -e
+          sudo apt-get update -y
+          sudo apt-get install -y postgresql-client
+          for i in {1..120}; do
+            if pg_isready -h 127.0.0.1 -p 5432 -U job_hunter -d job_hunter >/dev/null 2>&1; then
+              echo "Postgres is ready"
+              psql "postgresql://job_hunter:job_hunter@127.0.0.1:5432/job_hunter" -c 'SELECT version();' || true
+              exit 0
+            fi
+            echo "Waiting for Postgres... ($i/120)"
+            sleep 1
+          done
+          echo "Postgres did not become available after 120 seconds"
+          echo "Docker ps:"
+          docker ps -a || true
+          echo "Docker logs (tail 200 for postgres container):"
+          cid=$(docker ps -a --filter ancestor=postgres:15 -q | head -n1 || true)
+          if [ -n "$cid" ]; then
+            docker logs --tail 200 "$cid" || true
+          else
+            echo "no postgres container found"
+          fi
+          exit 1
+
+      - name: Run DB migrations
+        env:
+          DATABASE_URL: postgresql://job_hunter:job_hunter@127.0.0.1:5432/job_hunter
+        run: |
+          set -euo pipefail
+          echo "PNPM_HOME=${PNPM_HOME:-}"
+          which pnpm || true
+          pnpm --version || true
+          pnpm --filter @job-hunter/db db:generate
+          # run drizzle migrate (don't forward extra args that confuse the CLI)
+          pnpm --filter @job-hunter/db db:migrate || (
+            echo 'drizzle-kit migrate failed; printing environment and connection info';
+            env | sort;
+            echo 'Attempting psql connection check:';
+            psql "${DATABASE_URL}" -c 'SELECT 1' || true;
+            exit 1
+          )
+
+      - name: Run tests
+        env:
+          DATABASE_URL: postgresql://job_hunter:job_hunter@localhost:5432/job_hunter
+        run: pnpm -w -r test --silent

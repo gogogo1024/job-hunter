@@ -1,6 +1,9 @@
 {
   "name": "@job-hunter/shared",
   "private": true,
+  "engines": {
+    "node": ">=24"
+  },
   "type": "module",
   "scripts": { "typecheck": "tsc --noEmit" },
   "exports": { ".": "./src/index.ts" }
