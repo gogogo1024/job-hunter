@@ -1,0 +1,33 @@
+node_modules
+.pnpm-store
+.env
+.env.*
+!.env.example
+.next
+dist
+coverage
+*.db
+.DS_Store
+
+# IDE/editor
+.vscode/
+.idea/
+
+# Turbo / caches
+.turbo/
+.cache/
+
+# Temporary files and worker artifacts
+tmp/
+**/tmp/
+apps/worker/tmp/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+Thumbs.db
