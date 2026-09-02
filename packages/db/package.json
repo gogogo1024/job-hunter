@@ -5,7 +5,8 @@
   "scripts": {
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest"
   },
   "dependencies": {
     "@job-hunter/shared": "workspace:*",
@@ -15,7 +16,8 @@
   },
   "devDependencies": {
     "drizzle-kit": "latest",
-    "typescript": "latest"
+    "typescript": "latest",
+    "vitest": "latest"
   },
   "exports": { ".": "./src/index.ts" }
 }
