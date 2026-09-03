@@ -56,6 +56,14 @@ server.registerTool<JobSearchQueryInput, unknown>(
               type: "application/json",
               text: JSON.stringify(payload),
             },
+            {
+              type: "resource",
+              resource: {
+                uri: `urn:job-hunter:payload:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`,
+                mimeType: "application/json",
+                blob: Buffer.from(JSON.stringify(payload)).toString("base64"),
+              },
+            },
           ],
         };
       } catch (err: any) {
