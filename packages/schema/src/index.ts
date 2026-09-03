@@ -13,7 +13,9 @@ export const JobSearchQuerySchema = z.object({
     target: z.enum(["base", "total"]).optional(),
   }).optional(),
   workModes: z.array(z.enum(["remote", "hybrid", "onsite"])).optional(),
-  excludeRecruiters: z.boolean().optional()
+  excludeRecruiters: z.boolean().optional(),
+  offset: z.number().nonnegative().optional(),
+  limit: z.number().positive().max(100).optional(),
 });
 
 export type JobSearchQueryInput = z.infer<typeof JobSearchQuerySchema>;

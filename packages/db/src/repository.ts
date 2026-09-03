@@ -367,9 +367,25 @@ export async function closeMissingJobs(
 
 export async function getJobsContentHashes(source: Job["source"], board: string, externalIds: string[]): Promise<Record<string, string | null>> {
   if (externalIds.length === 0) return {};
-  const rows = await db.select({ externalId: jobs.externalId, contentHash: jobs.contentHash }).from(jobs).where(and(eq(jobs.source, source), eq(jobs.company, board), inArray(jobs.externalId, externalIds)));
+  // To avoid false positives caused by a stale or differently-computed `contentHash`
+  // column, prefer to recompute the canonical hash from the stored `raw` payload
+  // when available. Fall back to the stored `contentHash` value only when `raw`
+  // is missing for a row.
+  const rows = await db.select({ externalId: jobs.externalId, raw: jobs.raw, contentHash: jobs.contentHash }).from(jobs).where(and(eq(jobs.source, source), eq(jobs.company, board), inArray(jobs.externalId, externalIds)));
   const out: Record<string, string | null> = {};
-  for (const r of rows) out[(r as any).externalId] = (r as any).contentHash ?? null;
+  for (const r of rows) {
+    const ext = (r as any).externalId as string;
+    const raw = (r as any).raw as Record<string, unknown> | undefined | null;
+    if (raw) {
+      try {
+        out[ext] = hashJobContent(raw as any);
+        continue;
+      } catch (err) {
+        // If hashing fails for whatever reason, fall through to using stored column
+      }
+    }
+    out[ext] = (r as any).contentHash ?? null;
+  }
   return out;
 }
 
