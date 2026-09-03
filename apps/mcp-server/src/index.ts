@@ -27,7 +27,7 @@ server.registerTool<JobSearchQueryInput, unknown>(
   },
   async (input: JobSearchQueryInput, ctx: ServerContext): Promise<InputRequiredResult> => {
       try {
-        const { query, limit } = toJobSearchQuery(input);
+        const { query, limit, offset } = toJobSearchQuery(input);
 
         // Validate the normalized query against the canonical Zod schema.
         const parsed = JobSearchQuerySchema.safeParse(query);
@@ -44,17 +44,18 @@ server.registerTool<JobSearchQueryInput, unknown>(
         const validatedQuery = parsed.data;
 
         // Delegate to domain-level search service (DB prefilter + domain filters)
-        const matches = await searchService(validatedQuery, limit);
+        const matches = await searchService(validatedQuery, limit, offset);
 
       // Trim results to minimal fields for MCP payload
       const trimmed = matches.map((r) => ({ id: r.id, title: r.title, company: r.company, url: r.url }));
 
+      const payload = { status: "ok", query: validatedQuery, limit, offset, results: trimmed };
       return {
         resultType: "ok",
         content: [
           {
             type: "application/json",
-            text: JSON.stringify({ status: "ok", query: validatedQuery, limit, results: trimmed }),
+            text: JSON.stringify(payload),
           },
         ],
       };
@@ -62,7 +63,7 @@ server.registerTool<JobSearchQueryInput, unknown>(
       return {
         resultType: "error",
         content: [
-          { type: "text", text: `invalid query: ${err?.message ?? String(err)}` },
+          { type: "text", text: `Error: ${err?.message ?? String(err)}` },
           { type: "application/json", text: JSON.stringify({ status: "error", error: String(err) }) },
         ],
       };

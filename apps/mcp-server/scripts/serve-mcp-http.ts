@@ -41,7 +41,7 @@ function registerSearchTool(server: any) {
             resultType: 'error',
             content: [
               { type: 'text', text: `invalid query: ${parsed.error.message}` },
-              { type: 'application/json', text: JSON.stringify({ status: 'error', error: zodError }) },
+              { type: 'resource', resource: { uri: `urn:job-hunter:error:${Date.now()}:${Math.random().toString(36).slice(2,10)}`, mimeType: 'application/json', blob: Buffer.from(JSON.stringify({ status: 'error', error: zodError })).toString('base64') } },
             ],
           };
         }
@@ -96,10 +96,12 @@ function registerSearchTool(server: any) {
 
         const trimmed = matches.map((r) => ({ id: r.id, title: r.title, company: r.company, url: r.url }));
 
+        const payload = { status: 'ok', query: validatedQuery, limit, results: trimmed };
         return {
           resultType: 'ok',
           content: [
-            { type: 'text', text: JSON.stringify({ status: 'ok', query: validatedQuery, limit, results: trimmed }) },
+            { type: 'text', text: JSON.stringify(payload) },
+            { type: 'resource', resource: { uri: `urn:job-hunter:payload:${Date.now()}:${Math.random().toString(36).slice(2,10)}`, mimeType: 'application/json', blob: Buffer.from(JSON.stringify(payload)).toString('base64') } },
           ],
         };
       } catch (err: any) {
