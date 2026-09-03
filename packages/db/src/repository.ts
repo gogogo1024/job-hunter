@@ -193,14 +193,15 @@ export async function upsertJob(job: Job, syncRunId?: string): Promise<{ changed
   };
 
   // If this job is quarantined and there is an existing record, avoid overwriting the primary
-  // `jobs` row to prevent discarding presumably-good historical data. If there's no existing row,
-  // allow insert but mark it quarantined.
+  // `jobs` row to prevent discarding presumably-good historical data. 
+  // If there's no existing row (new job), allow insert normally without quarantine status.
   const isQuarantine = (job as any).__quarantine === true;
   const hasExisting = existing.length > 0;
   const shouldUpdateMain = !(isQuarantine && hasExisting);
 
-  if (isQuarantine) {
-    insertObj.status = "quarantined" as any;
+  // Only mark as quarantined if updating existing records during suspicious sync
+  // New records (insertions) should not be marked quarantined to remain searchable
+  if (isQuarantine && hasExisting) {
     updateObj.status = "quarantined" as any;
   }
 

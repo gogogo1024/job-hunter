@@ -46,13 +46,13 @@ const KNOWN_TECHNOLOGIES = [
   "GraphQL", "Rust", "C#", ".NET", "Django", "Rails"
 ];
 
-function detectLevel(title: string): JobLevel {
-  const t = title.toLowerCase();
-  if (/\bprincipal\b/.test(t)) return "principal";
-  if (/\bstaff\b/.test(t)) return "staff";
-  if (/\bsenior\b|\bsr\.?\b/.test(t)) return "senior";
-  if (/\bjunior\b|\bjr\.?\b/.test(t)) return "junior";
-  if (/\bmid\b|\bintermediate\b/.test(t)) return "mid";
+function detectLevel(title: string, description: string = ""): JobLevel {
+  const text = (title + " " + description).toLowerCase();
+  if (/\bprincipal\b/.test(text)) return "principal";
+  if (/\bstaff\b/.test(text)) return "staff";
+  if (/\bsenior\b|\bsr\.?\b/.test(text)) return "senior";
+  if (/\bjunior\b|\bjr\.?\b/.test(text)) return "junior";
+  if (/\bmid\b|\bintermediate\b/.test(text)) return "mid";
   return "unknown";
 }
 
@@ -392,7 +392,7 @@ export function normalizeAshbyJob(
     description: description, // legacy field (kept for compatibility)
     locations,
     workModes: workModes(posting),
-    level: detectLevel(posting.title),
+    level: detectLevel(posting.title, description),
     technologies: Array.from(new Set(detectTechnologies(`${posting.title} ${description}`))).sort(),
     primaryTechnologies: detectPrimaryTechnologies(posting.title ?? "", description, KNOWN_TECHNOLOGIES),
     publishedAt: posting.publishedAt ?? "",
