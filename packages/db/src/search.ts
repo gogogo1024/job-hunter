@@ -3,7 +3,7 @@ import { jobs } from "./schema.js";
 import { and, eq, or, sql } from "drizzle-orm";
 import type { Job } from "@job-hunter/shared";
 
-export async function searchJobs(query: any, limit = 50): Promise<Job[]> {
+export async function searchJobs(query: any, limit = 50, offset = 0): Promise<Job[]> {
   const whereClauses: any[] = [eq(jobs.status, "open")];
 
   if (query.countries && query.countries.length) {
@@ -65,6 +65,7 @@ export async function searchJobs(query: any, limit = 50): Promise<Job[]> {
     })
     .from(jobs)
     .where(and(...whereClauses))
+    .offset(Math.max(0, Math.trunc(offset ?? 0)))
     .limit(Math.min(2000, Math.max(1, Math.trunc(limit ?? 50))));
 
   return rows.map((r: any) => ({

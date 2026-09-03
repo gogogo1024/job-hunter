@@ -7,7 +7,7 @@ function normalizeToArray(v: any): string[] | undefined {
   return undefined;
 }
 
-export function toJobSearchQuery(raw: any): { query: JobSearchQuery; limit: number } {
+export function toJobSearchQuery(raw: any): { query: JobSearchQuery; limit: number; offset: number } {
   const q: any = {};
 
   q.countries = raw.countries ?? normalizeToArray(raw.country) ?? undefined;
@@ -41,7 +41,14 @@ export function toJobSearchQuery(raw: any): { query: JobSearchQuery; limit: numb
     return Math.max(1, Math.min(100, Math.trunc(n)));
   })();
 
-  return { query: parsed as JobSearchQuery, limit };
+  const offset = (() => {
+    const v = raw.offset ?? 0;
+    const n = Number(v);
+    if (!Number.isFinite(n)) return 0;
+    return Math.max(0, Math.trunc(n));
+  })();
+
+  return { query: parsed as JobSearchQuery, limit, offset };
 }
 
 export function getPrefilterSpec(query: JobSearchQuery) {
