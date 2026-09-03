@@ -79,10 +79,16 @@ async function fetchWithRetries(url: string, opts: any, retries = 10, delay = 50
         results.push({ ok: false, parsed: resultPart });
         continue;
       }
+      // Support both legacy text responses and structured resource payloads
       try {
-        parsed = JSON.parse(first.text);
+        let payloadText: any = undefined;
+        if (first.type === 'text' && typeof first.text === 'string') payloadText = first.text;
+        else if (first.type === 'resource' && first.resource && first.resource.mimeType === 'application/json' && typeof first.resource.blob === 'string') payloadText = Buffer.from(first.resource.blob, 'base64').toString('utf8');
+        else if (first.type === 'application/json' && typeof first.text === 'string') payloadText = first.text; // backward compat
+        if (payloadText != null) parsed = JSON.parse(payloadText);
+        else parsed = first;
       } catch (e) {
-        parsed = first.text;
+        parsed = first;
       }
     } else {
       // Assume JSON-RPC or JSON
@@ -91,11 +97,16 @@ async function fetchWithRetries(url: string, opts: any, retries = 10, delay = 50
         const resObj = j.result ?? j;
         const contentArr = resObj.content ?? [];
         const first = contentArr[0];
-        if (first && (first.type === 'text' || first.type === 'application/json')) {
+        if (first) {
           try {
-            parsed = JSON.parse(first.text);
+            let payloadText: any = undefined;
+            if (first.type === 'text' && typeof first.text === 'string') payloadText = first.text;
+            else if (first.type === 'resource' && first.resource && first.resource.mimeType === 'application/json' && typeof first.resource.blob === 'string') payloadText = Buffer.from(first.resource.blob, 'base64').toString('utf8');
+            else if (first.type === 'application/json' && typeof first.text === 'string') payloadText = first.text; // backward compat
+            if (payloadText != null) parsed = JSON.parse(payloadText);
+            else parsed = first;
           } catch (e) {
-            parsed = first.text;
+            parsed = first;
           }
         } else {
           parsed = resObj;
