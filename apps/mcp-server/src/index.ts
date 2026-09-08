@@ -1,8 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/server";
 import { serveStdio } from "@modelcontextprotocol/server/stdio";
-import type { ServerContext, ToolResult } from "@modelcontextprotocol/server";
+import type { ServerContext } from "@modelcontextprotocol/server";
 import type { JobSearchQueryInput } from "@job-hunter/schema";
-import * as z from "zod/v4";
 import { JobSearchQuerySchema } from "@job-hunter/schema";
 import type { JobSearchQuery } from "@job-hunter/domain";
 import { toJobSearchQuery } from "./search-utils.js";
@@ -17,15 +16,17 @@ const server = new McpServer({
 // `toJobSearchQuery` and `getPrefilterSpec` are implemented in search-utils
 // and imported above so they can be unit-tested in isolation.
 
-server.registerTool<JobSearchQueryInput, unknown>(
+const rawShape: any = JobSearchQuerySchema.shape;
+
+server.registerTool(
   "search_jobs",
   {
     description: "Search the local job database using deterministic filters.",
     // Provide the raw Zod shape so the MCP typing overload resolves to the
     // expected signature (the helper will still canonicalize/validate).
-    inputSchema: JobSearchQuerySchema.shape,
+    inputSchema: rawShape,
   },
-  async (input: JobSearchQueryInput, ctx: ServerContext): Promise<ToolResult> => {
+  async (input: JobSearchQueryInput, ctx: ServerContext): Promise<any> => {
       try {
         const { query, limit, offset } = toJobSearchQuery(input);
 
@@ -40,7 +41,7 @@ server.registerTool<JobSearchQueryInput, unknown>(
           };
         }
 
-        const validatedQuery = parsed.data;
+        const validatedQuery = (parsed.data as unknown) as JobSearchQuery;
 
         // Delegate to domain-level search service (DB prefilter + domain filters)
         const matches = await searchService(validatedQuery, limit, offset);

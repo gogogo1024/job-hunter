@@ -1,5 +1,5 @@
 import type { JobSearchQuery } from "./index.js";
-import { searchJobs as repoSearchJobs } from "../../db/src/search.js";
+import { searchJobs as repoSearchJobs } from "@job-hunter/db";
 import { matchesHardFilters } from "./index.js";
 import type { Job } from "@job-hunter/shared";
 

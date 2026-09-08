@@ -76,29 +76,24 @@ export function getPrefilterSpec(query: JobSearchQuery) {
 
 export async function buildWhereClausesForQuery(query: JobSearchQuery) {
   const { and, eq, or, sql } = await import('drizzle-orm');
-  const { jobs } = await import('@job-hunter/db');
+  const { jobs, locationsILike, salaryCondition, workModesILike, technologiesILike } = await import('@job-hunter/db');
 
   const whereClauses: any[] = [eq(jobs.status, 'open')];
 
   if (query.countries && query.countries.length) {
-    const countryConds = query.countries.map((c) => sql`LOWER(${jobs.locations}::text) LIKE ${"%" + c.toLowerCase() + "%"}`);
+    const countryConds = query.countries.map((c) => locationsILike(String(c)));
     whereClauses.push(or(...countryConds));
   }
 
   if (query.cities && query.cities.length) {
-    const cityConds = query.cities.map((c) => sql`LOWER(${jobs.locations}::text) LIKE ${"%" + c.toLowerCase() + "%"}`);
+    const cityConds = query.cities.map((c) => locationsILike(String(c)));
     whereClauses.push(or(...cityConds));
   }
 
   if (query.minSalary) {
     const amount = query.minSalary.amount;
     const currency = query.minSalary.currency;
-    const salaryCond = sql`(coalesce((compensation->>'currency')::text, '') = ${currency} AND (
-      (compensation->'base'->>'max')::numeric >= ${amount} OR
-      (compensation->'base'->>'min')::numeric >= ${amount} OR
-      (compensation->'total'->>'max')::numeric >= ${amount} OR
-      (compensation->'total'->>'min')::numeric >= ${amount}
-    ))`;
+    const salaryCond = salaryCondition(currency, amount as number);
     whereClauses.push(salaryCond);
   }
 

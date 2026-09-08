@@ -6,10 +6,14 @@
   },
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts"
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -b tsconfig.build.json",
+    "test": "vitest"
   },
   "dependencies": {
     "@job-hunter/domain": "workspace:*",
+    "@job-hunter/db": "workspace:*",
+    "sns-validator": "latest",
     "@job-hunter/schema": "workspace:*",
     "@job-hunter/shared": "workspace:*",
     "fastify": "latest"
@@ -17,5 +21,8 @@
   "devDependencies": {
     "tsx": "latest",
     "typescript": "latest"
-  }
+  },
+  "main": "dist/index.js",
+  "exports": { ".": "./dist/index.js" },
+  "types": "./dist/index.d.ts"
 }

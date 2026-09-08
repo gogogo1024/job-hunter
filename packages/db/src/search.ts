@@ -1,45 +1,43 @@
 import { db } from "./client.js";
 import { jobs } from "./schema.js";
 import { and, eq, or, sql } from "drizzle-orm";
+import { locationsILike, workModesILike, technologiesILike, salaryCondition } from "./sql-fragments.js";
 import type { Job } from "@job-hunter/shared";
 
 export async function searchJobs(query: any, limit = 50, offset = 0): Promise<Job[]> {
   const whereClauses: any[] = [eq(jobs.status, "open")];
 
   if (query.countries && query.countries.length) {
-    const countryConds = query.countries.map((c: string) => sql`LOWER(${jobs.locations}::text) LIKE ${"%" + String(c).toLowerCase() + "%"}`);
+    const countryConds = query.countries.map((c: string) => locationsILike(c));
     whereClauses.push(or(...countryConds));
   }
 
   if (query.cities && query.cities.length) {
-    const cityConds = query.cities.map((c: string) => sql`LOWER(${jobs.locations}::text) LIKE ${"%" + String(c).toLowerCase() + "%"}`);
+    const cityConds = query.cities.map((c: string) => locationsILike(c));
     whereClauses.push(or(...cityConds));
   }
 
   if (query.levels && query.levels.length) {
-    const levelConds = query.levels.map((l: any) => sql`${jobs.level} = ${l}`);
+    const levelConds = query.levels.map((l: any) => eq(jobs.level, l));
     whereClauses.push(or(...levelConds));
   }
 
   if (query.workModes && query.workModes.length) {
-    const modeConds = query.workModes.map((m: string) => sql`LOWER(${jobs.workModes}::text) LIKE ${"%" + String(m).toLowerCase() + "%"}`);
+    const modeConds = query.workModes.map((m: string) => workModesILike(m));
     whereClauses.push(or(...modeConds));
   }
 
   if (query.preferredTechnologies && query.preferredTechnologies.length) {
-    const techConds = query.preferredTechnologies.map((t: string) => sql`LOWER(${jobs.technologies}::text) LIKE ${"%" + String(t).toLowerCase() + "%"}`);
+    const techConds = query.preferredTechnologies.map((t: string) => technologiesILike(t));
     whereClauses.push(or(...techConds));
   }
 
   if (query.minSalary) {
     const amount = query.minSalary.amount;
     const currency = query.minSalary.currency;
-    const salaryCond = sql`(coalesce((compensation->>'currency')::text, '') = ${currency} AND (
-      (compensation->'base'->>'max')::numeric >= ${amount} OR
-      (compensation->'base'->>'min')::numeric >= ${amount} OR
-      (compensation->'total'->>'max')::numeric >= ${amount} OR
-      (compensation->'total'->>'min')::numeric >= ${amount}
-    ))`;
+    // Use centralized salaryCondition helper (still raw SQL under the hood,
+    // but consolidated for maintainability and consistent semantics).
+    const salaryCond = salaryCondition(currency, amount as number);
     whereClauses.push(salaryCond);
   }
 

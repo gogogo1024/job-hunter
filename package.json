@@ -7,7 +7,9 @@
   },
   "scripts": {
     "dev": "turbo dev",
+    "dev:local": "turbo dev --filter \"!@job-hunter/web\"",
     "build": "turbo build",
+    "build:tsc": "tsc -b tsconfig.references.json",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
     "test": "turbo test"

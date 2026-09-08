@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { db, sql, jobs, jobSnapshots, canonicalizeJobForHash, detectSuspiciousChange, hashJobContent, quarantineReviews } from "@job-hunter/db";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 
 function htmlToText(html?: string): string {
   if (!html) return "";
@@ -21,13 +21,18 @@ async function listQuarantined() {
 }
 
 async function accept(jobId: string) {
-  // fetch latest snapshot via raw SQL to use ORDER BY fetched_at
-  const snaps = await sql`SELECT raw, content_hash, fetched_at FROM job_snapshots WHERE job_id = ${jobId} ORDER BY fetched_at DESC LIMIT 1`;
-  if (snaps.length === 0) {
+  // fetch latest snapshot via Drizzle ORM and pick the newest by fetchedAt
+  const snapRows = await db
+    .select({ raw: jobSnapshots.raw, contentHash: jobSnapshots.contentHash, fetchedAt: jobSnapshots.fetchedAt })
+    .from(jobSnapshots)
+    .where(eq(jobSnapshots.jobId, jobId))
+    .orderBy(desc(jobSnapshots.fetchedAt))
+    .limit(1);
+  if (snapRows.length === 0) {
     console.error("No snapshots found for", jobId);
     return;
   }
-  const snap = snaps[0];
+  const snap = (snapRows[0] as any);
   // load previous main row
   const prevRows = await db.select({ raw: jobs.raw }).from(jobs).where(eq(jobs.id, jobId)).limit(1);
   const prevRaw = prevRows.length > 0 ? (prevRows[0] as any).raw as Record<string, any> : null;
@@ -37,7 +42,7 @@ async function accept(jobId: string) {
   const detect = detectSuspiciousChange(prevRaw as any, newRaw as any);
 
   const merged: Record<string, any> = { ...newRaw };
-  const keys: Array<keyof any> = ["title", "description", "url", "locations", "workModes", "compensation", "technologies"];
+    const keys: string[] = ["title", "description", "url", "locations", "workModes", "compensation", "technologies"];
   for (const k of keys) {
     const prevVal = prevRaw ? prevRaw[k] : undefined;
     const newVal = newRaw ? newRaw[k] : undefined;
@@ -75,7 +80,7 @@ async function accept(jobId: string) {
 
   // ensure hash uses canonical text description
   mergedJobForHash.descriptionText = preferredDescription;
-  const newContentHash = hashJobContent(mergedJobForHash as any);
+    const newContentHash = hashJobContent(mergedJobForHash as any);
 
   await db.update(jobs).set({
     raw: merged,
