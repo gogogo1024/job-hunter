@@ -1,14 +1,13 @@
 import { db } from "./client.js";
 import { jobs } from "./schema.js";
 import { and, eq, or, sql } from "drizzle-orm";
-import { locationsILike, workModesILike, technologiesILike, salaryCondition, excludeFlaggedJobs } from "./sql-fragments.js";
+import { locationsILike, workModesILike, technologiesILike, salaryCondition } from "./sql-fragments.js";
 import type { Job } from "@job-hunter/shared";
 
 export async function searchJobs(query: any, limit = 50, offset = 0): Promise<Job[]> {
-  const whereClauses: any[] = [
-    eq(jobs.status, "open"),
-    excludeFlaggedJobs(2), // Exclude jobs flagged by 2+ users as problematic
-  ];
+  const whereClauses: any[] = [eq(jobs.status, "open")];
+  // NOTE: excludeFlaggedJobs filtering is available but not enabled yet.
+  // Community voting/flagging design needs refinement before user exposure.
 
   if (query.countries && query.countries.length) {
     const countryConds = query.countries.map((c: string) => locationsILike(c));

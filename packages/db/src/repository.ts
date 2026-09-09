@@ -627,7 +627,16 @@ export async function markEmailJobSuppressedByRecipient(recipient: string, reaso
 }
 
 // ============================================================================
-// Job Flagging / Voting API
+// Job Flagging / Voting API (Internal / WIP)
+// ============================================================================
+// Community voting and content moderation design needs refinement before
+// exposing to end users. This API is available for internal experimentation
+// but is NOT YET ready for production use.
+// Future considerations:
+//   - Prevent admin corruption via community consensus (multi-sig, appeals)
+//   - Transparent audit logs for all flags and reviews
+//   - User appeal mechanisms for disputed flags
+//   - Anti-sybil measures beyond simple vote counting
 // ============================================================================
 
 export interface JobFlag {

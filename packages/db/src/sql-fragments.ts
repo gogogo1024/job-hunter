@@ -34,6 +34,9 @@ export function incrementAttemptsExpr() {
  * Exclude jobs that are flagged as problematic or whose company is flagged as problematic.
  * A job is excluded if it or its company has >= THRESHOLD flags of type 'problematic_job' or 'problematic_company'.
  * Threshold: 2 flags
+ * 
+ * NOTE: This is an internal helper for future community voting feature.
+ * Currently disabled in search.ts pending design refinement.
  */
 export function excludeFlaggedJobs(threshold = 2) {
   return sql`
