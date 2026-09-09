@@ -204,3 +204,26 @@ export const messages = pgTable(
     index("messages_conversation_idx").on(table.conversationId, table.createdAt),
   ],
 );
+
+// User voting/flagging for problematic jobs or companies
+export const jobFlagType = pgEnum("job_flag_type", ["problematic_job", "problematic_company", "spam", "duplicate"]);
+
+export const jobFlags = pgTable(
+  "job_flags",
+  {
+    id: varchar("id", { length: 255 }).primaryKey(),
+    userId: varchar("user_id", { length: 255 }).notNull(),
+    jobId: varchar("job_id", { length: 255 }), // Target job ID (null if flagging company)
+    company: varchar("company", { length: 255 }), // Company name (target for company-level flags)
+    flagType: jobFlagType("flag_type").notNull(), // 'problematic_job' | 'problematic_company' | 'spam' | 'duplicate'
+    reason: text("reason"), // Optional user-provided reason
+    metadata: jsonb("metadata").$type<Record<string, unknown>>(), // Additional context
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("job_flags_job_idx").on(table.jobId),
+    index("job_flags_company_idx").on(table.company),
+    index("job_flags_user_job_idx").on(table.userId, table.jobId), // Unique constraint for user vote
+    index("job_flags_type_idx").on(table.flagType),
+  ],
+);
