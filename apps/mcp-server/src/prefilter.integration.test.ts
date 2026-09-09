@@ -4,7 +4,7 @@ const hasDb = Boolean(process.env.DATABASE_URL);
 (hasDb ? describe : describe.skip)('DB prefilter integration', () => {
   it('filters by country and minSalary against real postgres', async () => {
     const { db, jobs } = await import('@job-hunter/db');
-    const { buildWhereClausesForQuery } = await import('./search-utils.js');
+    const { buildWhereClausesForQuery } = await import('./search-utils');
 
     const id1 = 'prefilter_test_1_' + Date.now();
     const id2 = 'prefilter_test_2_' + Date.now();

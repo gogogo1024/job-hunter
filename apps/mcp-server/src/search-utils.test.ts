@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toJobSearchQuery, getPrefilterSpec } from './search-utils.js';
+import { toJobSearchQuery, getPrefilterSpec, buildWhereClausesForQuery } from './search-utils.js';
 
 describe('toJobSearchQuery', () => {
   it('normalizes legacy fields and minBaseCad', () => {
@@ -34,5 +34,13 @@ describe('getPrefilterSpec', () => {
     expect(spec.countries).toEqual(['canada']);
     expect(spec.cities).toEqual(['toronto']);
     expect(spec.minSalary).toEqual({ amount: 120000, currency: 'CAD' });
+  });
+});
+
+describe('buildWhereClausesForQuery', () => {
+  it('generates salary condition when minSalary provided', async () => {
+    const clauses = await buildWhereClausesForQuery({ minSalary: { amount: 120000, currency: 'CAD' } } as any);
+    expect(Array.isArray(clauses)).toBe(true);
+    expect(clauses.length).toBeGreaterThan(0);
   });
 });

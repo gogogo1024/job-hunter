@@ -122,3 +122,85 @@ export const quarantineReviews = pgTable(
     index("quarantine_reviews_job_idx").on(table.jobId),
   ],
 );
+
+export const emailJobStatus = pgEnum("email_job_status", ["queued", "sent", "failed", "suppressed"]);
+
+export const emailJobs = pgTable(
+  "email_jobs",
+  {
+    id: varchar("id", { length: 255 }).primaryKey(),
+    dedupeKey: varchar("dedupe_key", { length: 255 }),
+    recipients: text("recipients").array().notNull().default([]),
+    subject: text("subject").notNull(),
+    bodyText: text("body_text"),
+    bodyHtml: text("body_html"),
+    attachments: jsonb("attachments").$type<unknown[]>(),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+    attempts: integer("attempts").notNull().default(0),
+    status: emailJobStatus("status").notNull().default("queued"),
+    providerId: varchar("provider_id", { length: 255 }),
+    providerMessageId: varchar("provider_message_id", { length: 255 }),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("email_jobs_status_idx").on(table.status),
+    index("email_jobs_next_attempt_idx").on(table.nextAttemptAt),
+  ],
+);
+
+export const emailEvents = pgTable(
+  "email_events",
+  {
+    id: varchar("id", { length: 255 }).primaryKey(),
+    emailJobId: varchar("email_job_id", { length: 255 }).notNull(),
+    providerEventType: text("provider_event_type"),
+    providerPayload: jsonb("provider_payload").$type<Record<string, unknown>>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("email_events_job_idx").on(table.emailJobId)],
+);
+
+export const emailSuppression = pgTable(
+  "email_suppression",
+  {
+    recipient: varchar("recipient", { length: 255 }).primaryKey(),
+    reason: text("reason"),
+    firstSeen: timestamp("first_seen", { withTimezone: true }).notNull().defaultNow(),
+    lastSeen: timestamp("last_seen", { withTimezone: true }).notNull().defaultNow(),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+  },
+  (table) => [],
+);
+
+// Conversations & messages: persistent audit of chat interactions (chat-as-search)
+export const conversations = pgTable(
+  "conversations",
+  {
+    id: varchar("id", { length: 255 }).primaryKey(),
+    userId: varchar("user_id", { length: 255 }),
+    title: text("title"),
+    meta: jsonb("meta").$type<Record<string, unknown>>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("conversations_updated_idx").on(table.updatedAt),
+  ],
+);
+
+export const messages = pgTable(
+  "messages",
+  {
+    id: varchar("id", { length: 255 }).primaryKey(),
+    conversationId: varchar("conversation_id", { length: 255 }).notNull(),
+    role: text("role").notNull(), // 'user' | 'system' | 'job-card' | 'action'
+    type: text("type"),
+    content: jsonb("content").$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("messages_conversation_idx").on(table.conversationId, table.createdAt),
+  ],
+);

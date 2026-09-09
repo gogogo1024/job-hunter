@@ -5,6 +5,7 @@
     "node": ">=24"
   },
   "type": "module",
-  "scripts": { "typecheck": "tsc --noEmit" },
-  "exports": { ".": "./src/index.ts" }
+  "scripts": { "dev": "tsc -b tsconfig.build.json --watch", "build": "tsc -b tsconfig.build.json", "typecheck": "tsc --noEmit" },
+  "exports": { ".": "./dist/index.js" },
+  "types": "./dist/index.d.ts"
 }

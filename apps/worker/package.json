@@ -7,15 +7,26 @@
   "type": "module",
   "scripts": {
     "sync:ashby": "tsx src/sync-ashby.ts",
-    "quarantine:review": "tsx src/quarantine-review.ts"
+    "quarantine:review": "tsx src/quarantine-review.ts",
+    "email-worker": "tsx src/email-worker.ts",
+    "build": "tsc -b tsconfig.build.json",
+    "dev": "tsc -b tsconfig.build.json --watch"
   },
   "dependencies": {
     "@job-hunter/db": "workspace:*",
     "@job-hunter/integrations": "workspace:*",
-    "dotenv": "latest"
+    "@job-hunter/notifications": "workspace:*",
+    "dotenv": "latest",
+    "bullmq": "latest",
+    "ioredis": "latest",
+    "@job-hunter/shared": "workspace:*"
   },
   "devDependencies": {
     "tsx": "latest",
     "typescript": "latest"
   }
+  ,
+  "main": "dist/index.js",
+  "exports": { ".": "./dist/index.js" },
+  "types": "./dist/index.d.ts"
 }

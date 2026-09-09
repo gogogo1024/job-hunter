@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "outDir": "dist",
+    "rootDir": "src"
+  },
+  "references": [
+    { "path": "../shared/tsconfig.build.json" },
+    { "path": "../schema/tsconfig.build.json" }
+  ],
+  "include": ["src/**/*"]
+  ,
+  "exclude": [
+    "src/**/__tests__/**",
+    "src/**/*.test.*",
+    "src/**/*.spec.*",
+    "src/**/*.integration.*"
+  ]
+}

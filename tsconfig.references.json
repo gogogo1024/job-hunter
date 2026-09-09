@@ -1,0 +1,14 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/shared/tsconfig.build.json" },
+    { "path": "packages/schema/tsconfig.build.json" },
+    { "path": "packages/db/tsconfig.build.json" },
+    { "path": "packages/domain/tsconfig.build.json" },
+    { "path": "packages/integrations/tsconfig.build.json" },
+    { "path": "packages/notifications/tsconfig.build.json" },
+    { "path": "apps/api/tsconfig.build.json" },
+    { "path": "apps/worker/tsconfig.build.json" },
+    { "path": "apps/mcp-server/tsconfig.build.json" }
+  ]
+}

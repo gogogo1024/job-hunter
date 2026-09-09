@@ -1,8 +1,7 @@
 import { and, eq, not, inArray, sql } from "drizzle-orm";
-import type { WorkMode, JobLevel } from "@job-hunter/shared";
 import type { InferInsertModel } from "drizzle-orm";
 import { db } from "./client.js";
-import { jobs, jobSnapshots, syncRuns, jobSnapshotDiffs } from "./schema.js";
+import { jobs, jobSnapshots, syncRuns, jobSnapshotDiffs, emailJobs, emailEvents, emailSuppression } from "./schema.js";
 import type { Job } from "@job-hunter/shared";
 import { createHash } from "node:crypto";
 
@@ -12,9 +11,26 @@ export function hashJobContent(job: Job): string {
 
 function htmlToText(html?: string): string {
   if (!html) return "";
-  const withoutTags = String(html).replace(/<[^>]+>/g, " ");
+  const withoutTags = stripTags(String(html));
   const withoutNbsp = withoutTags.replace(/&nbsp;|\u00A0/g, " ");
   return withoutNbsp.replace(/\s+/g, " ").trim();
+}
+
+function stripTags(input: string): string {
+  let out = "";
+  let inTag = false;
+  for (const ch of input) {
+    if (ch === "<") {
+      inTag = true;
+      continue;
+    }
+    if (ch === ">") {
+      inTag = false;
+      continue;
+    }
+    if (!inTag) out += ch;
+  }
+  return out;
 }
 
 export function canonicalizeJobForHash(jobLike: any) {
@@ -55,9 +71,11 @@ export function canonicalizeJobForHash(jobLike: any) {
     .sort((a: any, b: any) => a.key.localeCompare(b.key))
     .map((x: any) => x.val);
 
-  const canonicalWorkModes = Array.from(new Set((jobLike.workModes ?? []).map((w: any) => (w ?? "").toString().toLowerCase()))).sort();
+  const canonicalWorkModes = Array.from(new Set((jobLike.workModes ?? []).map((w: any) => String(w).toLowerCase()))) as string[];
+  canonicalWorkModes.sort((a, b) => a.localeCompare(b));
 
-  const canonicalTechnologies = Array.from(new Set((jobLike.technologies ?? []).map((t: any) => (t ?? "").toString().trim().toLowerCase()))).sort();
+  const canonicalTechnologies = Array.from(new Set((jobLike.technologies ?? []).map((t: any) => String(t).trim().toLowerCase()))) as string[];
+  canonicalTechnologies.sort((a, b) => a.localeCompare(b));
 
   const c = jobLike.compensation ?? jobLike.comp ?? undefined;
   const canonicalCompensation = (() => {
@@ -94,8 +112,142 @@ type SyncRunInsert = InferInsertModel<typeof syncRuns>;
 
 function jobToRaw(job: Job): Record<string, unknown> {
   // Ensure we store a JSON-serializable plain object for the raw snapshot/record.
-  // This strips prototypes and converts Dates to ISO strings.
-  return JSON.parse(JSON.stringify(job));
+  // Use structuredClone for deep clone, then convert Date -> ISO strings for serialization.
+  const cloned = structuredClone(job) as any;
+  const walk = (v: any): any => {
+    if (v === null || v === undefined) return v;
+    if (v instanceof Date) return v.toISOString();
+    if (Array.isArray(v)) return v.map(walk);
+    if (typeof v === "object") {
+      const out: Record<string, any> = {};
+      for (const [k, val] of Object.entries(v)) out[k] = walk(val);
+      return out;
+    }
+    return v;
+  };
+  return walk(cloned) as Record<string, unknown>;
+}
+
+async function computeAndInsertDiffsForJob(
+  job: Job,
+  snapshotId: string,
+  contentHash: string,
+  prevRawFromJobs: Record<string, any> | null,
+  existing: Array<any>,
+  syncRunId?: string,
+) {
+  if (existing.length === 0) return;
+  try {
+    let prevRaw: Record<string, any> | undefined = undefined;
+    if (prevRawFromJobs) {
+      prevRaw = prevRawFromJobs;
+    } else {
+      const prevRows2 = await db.select({ raw: jobs.raw }).from(jobs).where(and(eq(jobs.source, job.source), eq(jobs.externalId, job.externalId))).limit(1);
+      if (prevRows2.length > 0) prevRaw = prevRows2[0]?.raw as Record<string, any> | undefined;
+    }
+
+    try {
+      // eslint-disable-next-line no-console
+      console.debug(`[db-debug] computeDiff jobId=${job.id} hasPrevRaw=${!!prevRaw} existingContentHash=${(existing[0] as any)?.contentHash ?? null} newContentHash=${contentHash}`);
+    } catch {}
+
+    if (!prevRaw) return;
+    const prevCan = canonicalizeJobForHash(prevRaw);
+    const newCanonical = canonicalizeJobForHash(job);
+    const diffs: Record<string, { before: any; after: any }> = {};
+    for (const k of Object.keys(newCanonical)) {
+      const a = JSON.stringify((prevCan as any)[k] ?? null);
+      const b = JSON.stringify((newCanonical as any)[k] ?? null);
+      if (a !== b) diffs[k] = { before: JSON.parse(a), after: JSON.parse(b) };
+    }
+
+    try {
+      // eslint-disable-next-line no-console
+      console.debug(`[db-debug] computeDiff jobId=${job.id} diffsCount=${Object.keys(diffs).length} diffsKeys=${Object.keys(diffs).join(",")}`);
+    } catch {}
+
+    if (Object.keys(diffs).length > 0) {
+      const diffRow: JobSnapshotDiffInsert = {
+        id: `${snapshotId}:diff`,
+        jobSnapshotId: snapshotId,
+        jobId: job.id,
+        diff: diffs as unknown as Record<string, unknown>,
+        syncRunId: syncRunId ?? null,
+        createdAt: new Date(),
+      };
+      await db.insert(jobSnapshotDiffs).values(diffRow);
+    }
+  } catch (err) {
+    // best-effort; swallow diff errors
+  }
+}
+
+function getPreferredDescription(job: Job): string {
+  if ((job as any).descriptionText && String((job as any).descriptionText).trim().length > 0) return String((job as any).descriptionText);
+  if ((job as any).description && String((job as any).description).trim().length > 0) return String((job as any).description);
+  const orig = (job as any).__originalRaw ?? ((job as any).raw ?? null);
+  if (orig) {
+    if (orig.descriptionPlain && String(orig.descriptionPlain).trim().length > 0) return String(orig.descriptionPlain);
+    if (orig.descriptionText && String(orig.descriptionText).trim().length > 0) return String(orig.descriptionText);
+    if (orig.descriptionHtml && String(orig.descriptionHtml).trim().length > 0) return htmlToText(String(orig.descriptionHtml));
+  }
+  return String((job as any).description ?? "");
+}
+
+async function fetchPrevRawFromJobs(job: Job): Promise<Record<string, any> | null> {
+  const prevRows = await db
+    .select({ raw: jobs.raw })
+    .from(jobs)
+    .where(and(eq(jobs.source, job.source), eq(jobs.externalId, job.externalId)))
+    .limit(1);
+  if (prevRows.length > 0) return (prevRows[0] as any).raw ?? null;
+  return null;
+}
+
+function buildInsertAndUpdateObjs(job: Job, preferredDescription: string, contentHash: string, changed: boolean, now: Date) {
+  const insertObj: JobInsert = {
+    id: job.id,
+    externalId: job.externalId,
+    source: job.source,
+    company: job.company,
+    title: job.title,
+    url: job.url,
+    descriptionText: preferredDescription,
+    description: preferredDescription,
+    locations: job.locations,
+    workModes: job.workModes,
+    level: job.level,
+    compensation: job.compensation,
+    technologies: job.technologies,
+    publishedAt: job.publishedAt ? new Date(job.publishedAt) : null,
+    updatedAt: job.updatedAt ? new Date(job.updatedAt) : null,
+    status: "open",
+    raw: jobToRaw(job),
+    contentHash,
+    lastSeenAt: now,
+    ...(changed ? { lastChangedAt: now } : {}),
+  };
+
+  const updateObj: Partial<JobInsert> = {
+    company: job.company,
+    title: job.title,
+    url: job.url,
+    descriptionText: preferredDescription,
+    description: preferredDescription,
+    locations: job.locations,
+    workModes: job.workModes,
+    level: job.level,
+    compensation: job.compensation,
+    technologies: job.technologies,
+    publishedAt: job.publishedAt ? new Date(job.publishedAt) : null,
+    updatedAt: job.updatedAt ? new Date(job.updatedAt) : null,
+    status: "open",
+    raw: jobToRaw(job),
+    lastSeenAt: now,
+    ...(changed ? { contentHash, lastChangedAt: now } : {}),
+  };
+
+  return { insertObj, updateObj };
 }
 
 export async function upsertJob(job: Job, syncRunId?: string): Promise<{ changed: boolean }> {
@@ -228,65 +380,7 @@ export async function upsertJob(job: Job, syncRunId?: string): Promise<{ changed
 
   await db.insert(jobSnapshots).values(snapshot);
 
-  // Insert a lightweight diff object to help auditing what changed.
-  // Compute canonical forms and record keys that differ.
-  try {
-    const prev = existing[0] as { contentHash?: string } | undefined;
-    const prevCanonical = prev ? null : null; // placeholder, retrieving previous canonical would require fetching raw; skip when no previous
-    const newCanonical = canonicalizeJobForHash(job);
-    // If there was a previous row, use the previously-prefetched `prevRawFromJobs`
-    // (fetched before the upsert) to compute a stable diff. If that prefetch
-    // didn't exist for some reason, fall back to reading the jobs.raw value.
-    if (existing.length > 0) {
-      try {
-        let prevRaw: Record<string, any> | undefined = undefined;
-        if (prevRawFromJobs) {
-          prevRaw = prevRawFromJobs;
-        } else {
-          const prevRows2 = await db.select({ raw: jobs.raw }).from(jobs).where(and(eq(jobs.source, job.source), eq(jobs.externalId, job.externalId))).limit(1);
-          if (prevRows2.length > 0) prevRaw = prevRows2[0]?.raw as Record<string, any> | undefined;
-        }
-
-        // Debugging: log whether we have a prevRaw and the hashes involved so we can
-        // diagnose why diffs are not being created in the sync path.
-        try {
-          // eslint-disable-next-line no-console
-          console.debug(`[db-debug] computeDiff jobId=${job.id} hasPrevRaw=${!!prevRaw} existingContentHash=${(existing[0] as any)?.contentHash ?? null} newContentHash=${contentHash} shouldUpdateMain=${shouldUpdateMain}`);
-        } catch {}
-
-        if (prevRaw) {
-          const prevCan = canonicalizeJobForHash(prevRaw);
-          const diffs: Record<string, { before: any; after: any }> = {};
-          for (const k of Object.keys(newCanonical)) {
-            const a = JSON.stringify((prevCan as any)[k] ?? null);
-            const b = JSON.stringify((newCanonical as any)[k] ?? null);
-            if (a !== b) diffs[k] = { before: JSON.parse(a), after: JSON.parse(b) };
-          }
-
-          try {
-            // eslint-disable-next-line no-console
-            console.debug(`[db-debug] computeDiff jobId=${job.id} diffsCount=${Object.keys(diffs).length} diffsKeys=${Object.keys(diffs).join(",")}`);
-          } catch {}
-
-          if (Object.keys(diffs).length > 0) {
-            const diffRow: JobSnapshotDiffInsert = {
-              id: `${snapshot.id}:diff`,
-              jobSnapshotId: snapshot.id,
-              jobId: job.id,
-              diff: diffs as unknown as Record<string, unknown>,
-              syncRunId: syncRunId ?? null,
-              createdAt: new Date(),
-            };
-            await db.insert(jobSnapshotDiffs).values(diffRow);
-          }
-        }
-      } catch (err) {
-        // best-effort; swallow diff errors
-      }
-    }
-  } catch (err) {
-    // swallow audit errors to avoid breaking upsert path
-  }
+  await computeAndInsertDiffsForJob(job, snapshot.id, contentHash, prevRawFromJobs, existing, syncRunId);
 
   return { changed };
 }
@@ -322,17 +416,17 @@ export async function closeMissingJobs(
   if (toCloseRows.length === 0) return 0;
 
   // Perform the update to mark them closed
-  await db
-    .update(jobs)
-    .set({ status: "closed", lastSeenAt: when, lastChangedAt: when })
-    .where(
-      and(
-        eq(jobs.source, source),
-        eq(jobs.company, board),
-        not(eq(jobs.status, "closed")),
-        presentExternalIds.length === 0 ? sql`TRUE` : not(inArray(jobs.externalId, presentExternalIds)),
-      ),
-    );
+  if (presentExternalIds.length === 0) {
+    await db
+      .update(jobs)
+      .set({ status: "closed", lastSeenAt: when, lastChangedAt: when })
+      .where(and(eq(jobs.source, source), eq(jobs.company, board), not(eq(jobs.status, "closed"))));
+  } else {
+    await db
+      .update(jobs)
+      .set({ status: "closed", lastSeenAt: when, lastChangedAt: when })
+      .where(and(eq(jobs.source, source), eq(jobs.company, board), not(eq(jobs.status, "closed")), not(inArray(jobs.externalId, presentExternalIds))));
+  }
 
   // For each closed job, write a snapshot and a simple diff indicating status change
   for (const r of toCloseRows) {
@@ -455,4 +549,79 @@ export async function updateSyncRunCounts(
 
 export async function finishSyncRun(id: string, status: "success" | "failed", finishedAt: Date = new Date(), error?: string): Promise<void> {
   await db.update(syncRuns).set({ status, finishedAt, error: error ?? null }).where(eq(syncRuns.id, id));
+}
+
+// --- Email job/event/suppression helpers ---
+
+export async function insertEmailEvent(params: { id: string; emailJobId?: string | null; providerEventType?: string | null; providerPayload?: Record<string, unknown> | null }) {
+  const now = new Date();
+  const { id, emailJobId, providerEventType, providerPayload } = params;
+  await db.insert(emailEvents).values({ id, emailJobId: emailJobId ?? null, providerEventType: providerEventType ?? null, providerPayload: providerPayload ?? null, createdAt: now } as any);
+}
+
+export async function markEmailJobSent(emailJobId: string, providerMessageId?: string | null) {
+  await db.update(emailJobs).set({ status: "sent" as any, providerMessageId: providerMessageId ?? null, updatedAt: new Date() }).where(eq(emailJobs.id, emailJobId));
+  try {
+    await insertEmailEvent({ id: `evt:${emailJobId}:${Date.now()}`, emailJobId, providerEventType: "sent", providerPayload: { providerMessageId: providerMessageId ?? null } });
+  } catch (err) {
+    // best-effort
+  }
+}
+
+export async function markEmailJobFailed(emailJobId: string, errorText?: string | null, maxAttempts = 3, baseRetrySeconds = 60) {
+  // increment attempts
+  await db.update(emailJobs).set({ attempts: sql`COALESCE(${emailJobs.attempts}, 0) + 1`, updatedAt: new Date() }).where(eq(emailJobs.id, emailJobId));
+  const rows = await db.select({ attempts: emailJobs.attempts }).from(emailJobs).where(eq(emailJobs.id, emailJobId)).limit(1);
+  const attempts = rows.length > 0 ? (rows[0] as any).attempts as number : 0;
+
+  if (attempts >= maxAttempts) {
+    await db.update(emailJobs).set({ status: "failed" as any, updatedAt: new Date() }).where(eq(emailJobs.id, emailJobId));
+  } else {
+    const delayMs = baseRetrySeconds * 1000 * Math.pow(2, Math.max(0, attempts - 1));
+    const next = new Date(Date.now() + delayMs);
+    await db.update(emailJobs).set({ nextAttemptAt: next, status: "queued" as any, updatedAt: new Date() }).where(eq(emailJobs.id, emailJobId));
+  }
+
+  try {
+    await insertEmailEvent({ id: `evt:${emailJobId}:fail:${Date.now()}`, emailJobId, providerEventType: "send_failed", providerPayload: { error: errorText ?? null, attempts } });
+  } catch (err) {
+    // best-effort
+  }
+}
+
+export async function upsertEmailSuppression(recipient: string, reason?: string | null, metadata?: Record<string, unknown> | null) {
+  const now = new Date();
+  const existing = await db.select({ recipient: emailSuppression.recipient }).from(emailSuppression).where(eq(emailSuppression.recipient, recipient)).limit(1);
+  if (existing.length === 0) {
+    await db.insert(emailSuppression).values({ recipient, reason: reason ?? null, firstSeen: now, lastSeen: now, metadata: metadata ?? null } as any);
+  } else {
+    await db.update(emailSuppression).set({ reason: reason ?? null, lastSeen: now, metadata: metadata ?? null }).where(eq(emailSuppression.recipient, recipient));
+  }
+}
+
+export async function isEmailSuppressed(recipient: string): Promise<boolean> {
+  const rows = await db.select({ r: emailSuppression.recipient }).from(emailSuppression).where(eq(emailSuppression.recipient, recipient)).limit(1);
+  return rows.length > 0;
+}
+
+export async function findEmailJobByProviderMessageId(providerMessageId: string): Promise<string | null> {
+  if (!providerMessageId) return null;
+  const rows = await db.select({ id: emailJobs.id }).from(emailJobs).where(eq(emailJobs.providerMessageId, providerMessageId)).limit(1);
+  if (rows.length === 0) return null;
+  return (rows[0] as any).id as string;
+}
+
+export async function markEmailJobSuppressedByRecipient(recipient: string, reason?: string | null, metadata?: Record<string, unknown> | null) {
+  // upsert suppression record
+  await upsertEmailSuppression(recipient, reason ?? null, metadata ?? null);
+  try {
+    // Use Drizzle update with a SQL fragment for the array membership condition
+    await db
+      .update(emailJobs)
+      .set({ status: "suppressed", updatedAt: new Date() })
+      .where(sql`${emailJobs.recipients} @> ARRAY[${recipient}]::text[]`);
+  } catch (err) {
+    // best-effort: if update fails, swallow error
+    console.error("markEmailJobSuppressedByRecipient update failed:", err);
+  }
 }

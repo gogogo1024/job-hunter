@@ -4,7 +4,7 @@ Chat-first Job Intelligence Platform built as a TypeScript monorepo.
 
 ## Architecture
 
-- `apps/web`: Next.js UI (coming next)
+- `apps/web`: Next.js Chat UI (coming next) — 左右分栏聊天界面（议案）
 - `apps/api`: Fastify HTTP API
 - `apps/worker`: source synchronization/background jobs
 - `apps/mcp-server`: MCP adapter for WorkBuddy/Copilot/Claude Code/etc.
@@ -14,6 +14,13 @@ Chat-first Job Intelligence Platform built as a TypeScript monorepo.
 - `packages/integrations`: Ashby/Greenhouse/Lever adapters
 
 MCP is an adapter. Business logic lives in the application/domain layers.
+
+## Chat-as-search (明确设计说明)
+
+- 目的：用户通过自然语言聊天描述求职偏好，系统将文本解析为**显式的检索过滤器**（例如 location、workMode、technologies、level、salary），并使用确定性 SQL 在本地数据库中检索匹配岗位。系统**不做个性化/推荐**或基于用户画像的隐式排序；返回结果以可解释的过滤规则为准。
+- NLU 策略：优先采用规则/关键词/正则映射（rule-based）把用户话语转换为结构化 filter；在必要时可以使用 LLM 做澄清或辅助解析，但 LLM 仅负责生成过滤器，不参与排序/推荐。
+- 流式返回：检索结果按确定性排序（例如 `published_at DESC, id`）分批流式发送给前端（通过 WS/SSE），每批结果可被持久化为审计消息以供回放。
+
 
 ## Phase 1 implemented
 
