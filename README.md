@@ -137,12 +137,3 @@ pnpm --filter @job-hunter/mcp-server test
 
 - 基础镜像与本地服务通过 `infra/compose.yaml` 启动（包含 PostgreSQL）。
 - 目前已实现 Ashby 公共岗位抓取、标准化与快照上报；后续计划加入 Greenhouse/Lever 适配器与基于 Postgres 的确定性 `search_jobs`。
- - 目前已实现 Ashby 公共岗位抓取、标准化与快照上报；后续计划加入 Greenhouse/Lever 适配器与基于 Postgres 的确定性 `search_jobs`。
-
-更多设计细节与实现建议见： [docs/DESIGN.md](docs/DESIGN.md)。
-
----
-
----
-
-如果你希望我把 README 进一步扩展为「快速入门示例」「接口文档（更多端点）」「体系结构图」或生成一个开发运行脚本 `scripts/devenv.md`，告诉我想要的细节，我会继续完善。

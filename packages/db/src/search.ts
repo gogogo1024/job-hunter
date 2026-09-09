@@ -6,8 +6,6 @@ import type { Job } from "@job-hunter/shared";
 
 export async function searchJobs(query: any, limit = 50, offset = 0): Promise<Job[]> {
   const whereClauses: any[] = [eq(jobs.status, "open")];
-  // NOTE: excludeFlaggedJobs filtering is available but not enabled yet.
-  // Community voting/flagging design needs refinement before user exposure.
 
   if (query.countries && query.countries.length) {
     const countryConds = query.countries.map((c: string) => locationsILike(c));
