@@ -173,3 +173,34 @@ export const emailSuppression = pgTable(
   },
   (table) => [],
 );
+
+// Conversations & messages: persistent audit of chat interactions (chat-as-search)
+export const conversations = pgTable(
+  "conversations",
+  {
+    id: varchar("id", { length: 255 }).primaryKey(),
+    userId: varchar("user_id", { length: 255 }),
+    title: text("title"),
+    meta: jsonb("meta").$type<Record<string, unknown>>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("conversations_updated_idx").on(table.updatedAt),
+  ],
+);
+
+export const messages = pgTable(
+  "messages",
+  {
+    id: varchar("id", { length: 255 }).primaryKey(),
+    conversationId: varchar("conversation_id", { length: 255 }).notNull(),
+    role: text("role").notNull(), // 'user' | 'system' | 'job-card' | 'action'
+    type: text("type"),
+    content: jsonb("content").$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("messages_conversation_idx").on(table.conversationId, table.createdAt),
+  ],
+);

@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "tsc -b tsconfig.build.json --watch",
     "build": "tsc -b tsconfig.build.json",
+    "test": "vitest",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "typecheck": "tsc --noEmit"
