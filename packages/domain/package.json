@@ -6,7 +6,7 @@
   },
   "type": "module",
   "scripts": { "dev": "tsc -b tsconfig.build.json --watch", "build": "tsc -b tsconfig.build.json", "typecheck": "tsc --noEmit" },
-  "dependencies": { "@job-hunter/shared": "workspace:*", "@job-hunter/db": "workspace:*" },
+  "dependencies": { "@job-hunter/shared": "workspace:*", "@job-hunter/db": "workspace:*", "@anthropic-ai/sdk": "latest" },
   "exports": { ".": "./dist/index.js" },
   "types": "./dist/index.d.ts"
 }
