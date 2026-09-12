@@ -5,8 +5,23 @@
     "node": ">=24"
   },
   "type": "module",
-  "scripts": { "dev": "tsc -b tsconfig.build.json --watch", "build": "tsc -b tsconfig.build.json", "typecheck": "tsc --noEmit" },
-  "dependencies": { "@job-hunter/shared": "workspace:*", "@job-hunter/db": "workspace:*", "@anthropic-ai/sdk": "latest" },
-  "exports": { ".": "./dist/index.js" },
+  "scripts": {
+    "dev": "tsc -b tsconfig.build.json --watch",
+    "build": "tsc -b tsconfig.build.json",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "latest",
+    "@job-hunter/db": "workspace:*",
+    "@job-hunter/shared": "workspace:*",
+    "@langchain/anthropic": "^1.5.10",
+    "@langchain/core": "^1.2.11",
+    "@langchain/google-genai": "^2.3.2",
+    "@langchain/openai": "^1.5.13",
+    "langchain": "^1.5.11"
+  },
+  "exports": {
+    ".": "./dist/index.js"
+  },
   "types": "./dist/index.d.ts"
 }

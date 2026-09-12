@@ -1,19 +1,21 @@
 import { db, jobs } from '@job-hunter/db';
-import { extractFeaturesWithAI, useAIFeaturesForFiltering } from '@job-hunter/domain';
+import { extractFeaturesWithAI, useAIFeaturesForFiltering, validateAIProviderConfig, getCurrentProvider } from '@job-hunter/domain';
 import { eq } from 'drizzle-orm';
 
 async function main() {
   try {
     console.log('🤖 AI Feature Extraction Batch Job\n');
-    console.log('Checking for ANTHROPIC_API_KEY...');
     
-    if (!process.env.ANTHROPIC_API_KEY) {
-      console.log('❌ ANTHROPIC_API_KEY not set.');
-      console.log('   Set it with: export ANTHROPIC_API_KEY=sk-ant-xxx');
+    // Validate AI provider configuration
+    try {
+      validateAIProviderConfig();
+    } catch (error: any) {
+      console.log(`❌ ${error.message}`);
       process.exit(1);
     }
     
-    console.log('✅ API key found\n');
+    const provider = getCurrentProvider();
+    console.log(`✅ Using AI Provider: ${provider.toUpperCase()}\n`);
     
     // Get all jobs that need AI analysis
     console.log('📋 Fetching jobs pending AI analysis...');

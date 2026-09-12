@@ -1,5 +1,6 @@
 import type { Job } from "@job-hunter/shared";
-import { Anthropic } from "@anthropic-ai/sdk";
+import { HumanMessage } from "@langchain/core/messages";
+import { createAIProvider, validateAIProviderConfig, getCurrentProvider } from "./providers/ai-provider-factory.js";
 
 export interface AIExtractedFeatures {
   inferredLevel: "intern" | "junior" | "mid" | "senior" | "staff" | "principal" | "unknown";
@@ -10,26 +11,21 @@ export interface AIExtractedFeatures {
 // Use a flexible type to accept both shared Job type and database rows
 type JobLike = Job | any;
 
-// Initialize Claude client (uses ANTHROPIC_API_KEY environment variable)
-let client: Anthropic | null = null;
-
-function getClient(): Anthropic {
-  if (!client) {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      throw new Error("ANTHROPIC_API_KEY environment variable is not set");
-    }
-    client = new Anthropic({ apiKey });
-  }
-  return client;
-}
-
 /**
- * Use Claude to extract accurate features from job description
+ * Use LangChain to extract accurate features from job description
+ * Works with any LLM provider (Claude, Gemini, GPT, etc.)
  * Returns: inferred level, required technologies, company type
+ *
+ * @param job - Job posting to analyze
+ * @returns Extracted features
+ * @throws Error if API key is not configured
  */
 export async function extractFeaturesWithAI(job: JobLike): Promise<AIExtractedFeatures> {
-  const client = getClient();
+  // Validate that API key is set
+  validateAIProviderConfig();
+
+  const model = createAIProvider();
+  const provider = getCurrentProvider();
 
   const prompt = `Analyze this job posting and extract key information:
 
@@ -52,21 +48,10 @@ Rules for inference:
 Return ONLY the JSON object, nothing else.`;
 
   try {
-    const message = await client.messages.create({
-      model: "claude-3-5-sonnet-20241022",
-      max_tokens: 200,
-      messages: [
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-    });
+    const message = await model.invoke([new HumanMessage(prompt)]);
 
-    const responseText = message.content
-      .filter((block) => block.type === "text")
-      .map((block) => (block as any).text)
-      .join("");
+    // Extract text content from response
+    const responseText = typeof message.content === "string" ? message.content : String(message.content);
 
     // Parse JSON response
     const parsed = JSON.parse(responseText);
@@ -77,7 +62,7 @@ Return ONLY the JSON object, nothing else.`;
       companyType: parsed.companyType || "Other",
     };
   } catch (error) {
-    console.error("AI extraction error:", error);
+    console.error(`AI extraction error (provider: ${provider}):`, error);
     throw error;
   }
 }
