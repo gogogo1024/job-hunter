@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@job-hunter/db": "workspace:*",
+    "@job-hunter/domain": "workspace:*",
     "@job-hunter/integrations": "workspace:*",
     "@job-hunter/notifications": "workspace:*",
     "dotenv": "latest",
