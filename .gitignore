@@ -40,6 +40,25 @@ tmp/
 apps/worker/tmp/
 apps/*/tmp/
 
+# Terraform (Infrastructure as Code)
+infra/terraform/.terraform/
+infra/terraform/.terraform.lock.hcl
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.*
+infra/terraform/terraform.tfvars
+infra/terraform/crash.log
+infra/terraform/override.tf
+infra/terraform/override.tf.json
+infra/terraform/*_override.tf
+infra/terraform/*_override.tf.json
+infra/terraform/tfplan
+infra/terraform/.env
+
+# Pulumi (alternative IaC)
+Pulumi.*.yaml
+infra/pulumi/.venv/
+infra/pulumi/__pycache__/
+
 # Logs
 logs/
 *.log
