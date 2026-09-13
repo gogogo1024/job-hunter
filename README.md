@@ -55,15 +55,17 @@ The system supports three AI providers for job analysis (Claude, Gemini, GPT). C
 AI_PROVIDER=anthropic  # or: google, openai
 
 # Set the corresponding API key
-ANTHROPIC_API_KEY=sk-ant-...    # For Claude
-GOOGLE_API_KEY=...              # For Gemini
-OPENAI_API_KEY=sk-...            # For GPT
+ANTHROPIC_API_KEY=<your-api-key>    # For Claude
+GOOGLE_API_KEY=<your-api-key>       # For Gemini
+OPENAI_API_KEY=<your-api-key>       # For GPT
 
 # Optional: override default models
 ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
 GOOGLE_MODEL=gemini-1.5-flash
 OPENAI_MODEL=gpt-4o-mini
 ```
+
+⚠️  **Security**: Never commit `.env` to git. The `.gitignore` already excludes it. Always use environment-based secret management in production. See [docs/SECURITY.md](docs/SECURITY.md) for detailed guidelines.
 
 Sync a real Ashby board:
 
