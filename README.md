@@ -35,14 +35,34 @@ Ashby documents its public endpoint as `GET https://api.ashbyhq.com/posting-api/
 
 ## Local setup
 
-Requirements: Node.js 20+, pnpm, Docker.
+Requirements: Node.js 24+, pnpm, Docker.
 
 ```bash
 pnpm install
 cp .env.example .env
+# Edit .env to configure database, Ashby, and AI provider
 docker compose -f infra/compose.yaml up -d
 pnpm --filter @job-hunter/db db:generate
 pnpm --filter @job-hunter/db db:migrate
+```
+
+### AI Provider Configuration
+
+The system supports three AI providers for job analysis (Claude, Gemini, GPT). Configure in `.env`:
+
+```bash
+# Select provider (default: anthropic)
+AI_PROVIDER=anthropic  # or: google, openai
+
+# Set the corresponding API key
+ANTHROPIC_API_KEY=sk-ant-...    # For Claude
+GOOGLE_API_KEY=...              # For Gemini
+OPENAI_API_KEY=sk-...            # For GPT
+
+# Optional: override default models
+ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
+GOOGLE_MODEL=gemini-1.5-flash
+OPENAI_MODEL=gpt-4o-mini
 ```
 
 Sync a real Ashby board:
@@ -78,6 +98,9 @@ pnpm --filter @job-hunter/worker sync:ashby <job-board-name>
 
 # 审查隔离队列
 pnpm --filter @job-hunter/worker quarantine:review
+
+# 运行 AI 特征提取（需要配置 AI_PROVIDER 和对应 API_KEY）
+pnpm --filter @job-hunter/worker exec tsx src/extract-ai-features.ts
 ```
 
 ## API 示例

@@ -11,7 +11,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "latest",
     "@job-hunter/db": "workspace:*",
     "@job-hunter/shared": "workspace:*",
     "@langchain/anthropic": "^1.5.10",
