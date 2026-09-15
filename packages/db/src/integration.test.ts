@@ -75,17 +75,20 @@ describeIf("integration: db fragments (docker)", () => {
     if (!ok) throw new Error("Postgres did not become ready in time");
 
     // Create a minimal `email_jobs` table used by the fragments under test.
+    // Use IF NOT EXISTS and upsert-like seed to avoid duplicate-key failures when
+    // tests or previous runs already created/seeded the table.
     await sql`
       CREATE TABLE IF NOT EXISTS email_jobs (
         id varchar(255) PRIMARY KEY,
         recipients text[] NOT NULL DEFAULT '{}',
-        attempts integer NOT NULL DEFAULT 0
+        attempts integer NOT NULL DEFAULT 0,
+        subject text NOT NULL DEFAULT ''
       );
     `;
 
-    // Clean and seed
-    await sql`TRUNCATE TABLE email_jobs;`;
-    await sql`INSERT INTO email_jobs (id, recipients, attempts) VALUES ('e1', ARRAY['alpha@example.com','beta@example.com']::text[], 0);`;
+    // Clean and seed (idempotent)
+    await sql`DELETE FROM email_jobs WHERE id = 'e1'`;
+    await sql`INSERT INTO email_jobs (id, recipients, attempts, subject) VALUES ('e1', ARRAY['alpha@example.com','beta@example.com']::text[], 0, 'seed') ON CONFLICT (id) DO UPDATE SET recipients = EXCLUDED.recipients, attempts = EXCLUDED.attempts, subject = EXCLUDED.subject;`;
   }, 5 * 60 * 1000);
 
   afterAll(async () => {

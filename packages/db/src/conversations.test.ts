@@ -83,10 +83,12 @@ describeIf("integration: conversations/messages (docker)", () => {
       );
     `;
 
-    await sql`TRUNCATE TABLE messages, conversations;`;
+    // Clean and seed in an idempotent manner to avoid duplicate key errors
+    await sql`DELETE FROM messages WHERE id = 'm1'`;
+    await sql`DELETE FROM conversations WHERE id = 'c1'`;
 
-    await sql`INSERT INTO conversations (id, user_id, title, meta) VALUES ('c1','u1','test', ${JSON.stringify({ source: 'test' })}::jsonb);`;
-    await sql`INSERT INTO messages (id, conversation_id, role, type, content) VALUES ('m1','c1','user','query', ${JSON.stringify({ text: '找远程 Go 高级，年薪 >= 300000' })}::jsonb);`;
+    await sql`INSERT INTO conversations (id, user_id, title, meta) VALUES ('c1','u1','test', ${JSON.stringify({ source: 'test' })}::jsonb) ON CONFLICT (id) DO UPDATE SET user_id = EXCLUDED.user_id, title = EXCLUDED.title, meta = EXCLUDED.meta;`;
+    await sql`INSERT INTO messages (id, conversation_id, role, type, content) VALUES ('m1','c1','user','query', ${JSON.stringify({ text: '找远程 Go 高级，年薪 >= 300000' })}::jsonb) ON CONFLICT (id) DO UPDATE SET conversation_id = EXCLUDED.conversation_id, role = EXCLUDED.role, type = EXCLUDED.type, content = EXCLUDED.content;`;
   }, 5 * 60 * 1000);
 
   afterAll(async () => {
