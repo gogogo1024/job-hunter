@@ -4,11 +4,22 @@ import path from "node:path";
 
 const COMPOSE_PATH = path.resolve(process.cwd(), "..", "..", "infra", "compose.yaml");
 
+// Skip integration tests locally when Docker is not available. CI provides Docker.
+let hasDocker = false;
+try {
+  execSync("docker info", { stdio: "ignore" });
+  hasDocker = true;
+} catch (e) {
+  hasDocker = false;
+}
+const shouldRunIntegrationTests = Boolean(process.env.CI) || hasDocker;
+const describeIf = shouldRunIntegrationTests ? describe : describe.skip;
+
 function runCmd(cmd: string) {
   return execSync(cmd, { stdio: "inherit" });
 }
 
-describe("integration: conversations/messages (docker)", () => {
+describeIf("integration: conversations/messages (docker)", () => {
   let sql: any;
 
   beforeAll(async () => {

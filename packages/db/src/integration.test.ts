@@ -5,11 +5,23 @@ import fs from "node:fs";
 
 const COMPOSE_PATH = path.resolve(process.cwd(), "..", "..", "infra", "compose.yaml");
 
+// Detect whether docker is available locally. In developer environments without
+// Docker we should skip these integration tests; CI runners provide Docker.
+let hasDocker = false;
+try {
+  execSync("docker info", { stdio: "ignore" });
+  hasDocker = true;
+} catch (e) {
+  hasDocker = false;
+}
+const shouldRunIntegrationTests = Boolean(process.env.CI) || hasDocker;
+const describeIf = shouldRunIntegrationTests ? describe : describe.skip;
+
 function runCmd(cmd: string) {
   return execSync(cmd, { stdio: "inherit" });
 }
 
-describe("integration: db fragments (docker)", () => {
+describeIf("integration: db fragments (docker)", () => {
   let sql: any;
   let db: any;
 
