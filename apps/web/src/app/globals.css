@@ -1,0 +1,11 @@
+:root {
+  --bg: #fff;
+  --fg: #111;
+}
+html, body, #__next {
+  height: 100%;
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+}
+main { padding: 24px; }
