@@ -15,6 +15,7 @@ export const jobSourceEnum = pgEnum("job_source", ["ashby", "greenhouse", "lever
 export const jobLevelEnum = pgEnum("job_level", ["intern", "junior", "mid", "senior", "staff", "principal", "unknown"]);
 export const workModeEnum = pgEnum("work_mode", ["remote", "hybrid", "onsite"]);
 export const jobStatusEnum = pgEnum("job_status", ["open", "closed", "quarantined"]);
+export const applicationStatusEnum = pgEnum("application_status", ["pending", "applied", "rejected", "interview"]);
 
 export const jobs = pgTable(
   "jobs",
@@ -42,6 +43,13 @@ export const jobs = pgTable(
     firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull().defaultNow(),
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
     lastChangedAt: timestamp("last_changed_at", { withTimezone: true }),
+    // AI-extracted features (for more accurate filtering)
+    aiInferredLevel: jobLevelEnum("ai_inferred_level"),
+    aiRequiredTechnologies: text("ai_required_technologies").array().notNull().default([]),
+    aiCompanyType: text("ai_company_type"), // e.g., "SaaS", "Infrastructure", "Consulting"
+    aiAnalysisStatus: text("ai_analysis_status").notNull().default("pending"), // pending|processing|completed|failed
+    aiAnalysisError: text("ai_analysis_error"),
+    aiAnalysisAt: timestamp("ai_analysis_at", { withTimezone: true }),
   },
   (table) => [
     uniqueIndex("jobs_source_external_unique").on(table.source, table.externalId),
@@ -202,5 +210,40 @@ export const messages = pgTable(
   },
   (table) => [
     index("messages_conversation_idx").on(table.conversationId, table.createdAt),
+  ],
+);
+
+// Job applications: track which jobs have been applied to and their status
+export const jobApplications = pgTable(
+  "job_applications",
+  {
+    id: varchar("id", { length: 255 }).primaryKey(),
+    jobId: varchar("job_id", { length: 255 }).notNull().unique(),
+    status: applicationStatusEnum("status").notNull().default("pending"),
+    filterReasons: text("filter_reasons").array().notNull().default([]),
+    reviewFlags: text("review_flags").array().notNull().default([]),
+    appliedAt: timestamp("applied_at", { withTimezone: true }),
+    rejectedAt: timestamp("rejected_at", { withTimezone: true }),
+    rejectedReason: text("rejected_reason"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("job_applications_job_idx").on(table.jobId),
+    index("job_applications_status_idx").on(table.status),
+  ],
+);
+
+// Company blacklist: permanently exclude companies with rejection letters
+export const companyBlacklist = pgTable(
+  "company_blacklist",
+  {
+    id: varchar("id", { length: 255 }).primaryKey(),
+    companyName: varchar("company_name", { length: 255 }).notNull().unique(),
+    reason: text("reason").notNull(),
+    addedAt: timestamp("added_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("company_blacklist_name_idx").on(table.companyName),
   ],
 );

@@ -81,3 +81,6 @@ export function matchesHardFilters(job: Job, query: JobSearchQuery): boolean {
 }
 
 export * from "./search-service.js";
+export * from "./filter-rules.js";
+export * from "./ai-feature-extraction.js";
+export * from "./providers/ai-provider-factory.js";

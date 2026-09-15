@@ -35,14 +35,34 @@ Ashby documents its public endpoint as `GET https://api.ashbyhq.com/posting-api/
 
 ## Local setup
 
-Requirements: Node.js 20+, pnpm, Docker.
+Requirements: Node.js 24+, pnpm, Docker.
 
 ```bash
 pnpm install
 cp .env.example .env
+# Edit .env to configure database, Ashby, and AI provider
 docker compose -f infra/compose.yaml up -d
 pnpm --filter @job-hunter/db db:generate
 pnpm --filter @job-hunter/db db:migrate
+```
+
+### AI Provider Configuration
+
+The system supports three AI providers for job analysis (Claude, Gemini, GPT). Configure in `.env`:
+
+```bash
+# Select provider (default: anthropic)
+AI_PROVIDER=anthropic  # or: google, openai
+
+# Set the corresponding API key
+ANTHROPIC_API_KEY=sk-ant-...    # For Claude
+GOOGLE_API_KEY=...              # For Gemini
+OPENAI_API_KEY=sk-...            # For GPT
+
+# Optional: override default models
+ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
+GOOGLE_MODEL=gemini-1.5-flash
+OPENAI_MODEL=gpt-4o-mini
 ```
 
 Sync a real Ashby board:
@@ -78,6 +98,9 @@ pnpm --filter @job-hunter/worker sync:ashby <job-board-name>
 
 # 审查隔离队列
 pnpm --filter @job-hunter/worker quarantine:review
+
+# 运行 AI 特征提取（需要配置 AI_PROVIDER 和对应 API_KEY）
+pnpm --filter @job-hunter/worker exec tsx src/extract-ai-features.ts
 ```
 
 ## API 示例
@@ -112,6 +135,56 @@ pnpm --filter @job-hunter/db db:migrate
 ```bash
 cp .env.example .env
 ```
+
+## Infrastructure as Code (IaC) 配置管理
+
+**重要**: 本项目使用 Infrastructure as Code 方式来管理配置和敏感密钥，而不是依赖手工维护的 `.env` 文件。这确保了：
+
+- ✅ **无密钥泄漏**: API 密钥永远不会出现在代码库中
+- ✅ **可重复部署**: 基础设施由代码版本管理
+- ✅ **审计追踪**: 所有配置变更都被记录
+- ✅ **多环境支持**: 开发、测试、生产可以有不同的密钥和配置
+- ✅ **自动化部署**: 通过 CI/CD 集成无缝部署
+
+### 本地开发
+
+本地开发时，仍然使用 `.env` 文件：
+
+```bash
+cp .env.example .env
+# 仅在本地添加 API 密钥（.env 在 .gitignore 中，不会被提交）
+echo "ANTHROPIC_API_KEY=sk-ant-..." >> .env
+```
+
+### 生产部署（GitHub Secrets + GitHub Actions）
+
+最简单的方案：使用 GitHub Secrets 存储敏感信息，通过 GitHub Actions 自动部署。
+
+**快速设置**：
+
+```bash
+# 1. 添加 Secrets 到 GitHub 仓库
+gh secret set DATABASE_URL --body "postgresql://..."
+gh secret set ANTHROPIC_API_KEY --body "sk-ant-..."
+gh secret set AI_PROVIDER --body "anthropic"
+# ... 其他必要的 Secrets
+
+# 2. 推送到 main 分支
+git push origin main
+
+# 3. GitHub Actions 自动运行
+# 查看运行状态
+gh run list
+```
+
+详见 [`docs/GITHUB_SECRETS.md`](docs/GITHUB_SECRETS.md) — 完整的 GitHub Secrets 配置指南。
+
+**高级部署方案**：
+
+如果需要多云支持或更复杂的基础设施管理，可以使用 Terraform 或其他 IaC 工具：
+
+- [`docs/INFRASTRUCTURE.md`](docs/INFRASTRUCTURE.md) — 完整的 IaC 架构说明（支持 Terraform、Pulumi、Bicep、Kubernetes、Docker）
+- [`infra/terraform/`](infra/terraform/) — Terraform 配置文件（AWS）
 
 ## 开发与测试
 
