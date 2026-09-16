@@ -54,6 +54,7 @@ jobs:
       - name: Build shared package first (produce .d.ts)
         run: |
           pnpm --filter @job-hunter/shared build
+          echo "Shared dist contents:" && ls -la packages/shared/dist || true
           pnpm -w -r build
 
       - name: Wait for Postgres
