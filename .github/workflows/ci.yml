@@ -51,8 +51,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build TypeScript references (ensure .d.ts)
-        run: pnpm run build:tsc
+      - name: Build shared package first (produce .d.ts)
+        run: |
+          pnpm --filter @job-hunter/shared build
+          pnpm -w -r build
 
       - name: Wait for Postgres
         run: |
