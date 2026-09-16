@@ -51,6 +51,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build TypeScript references (ensure .d.ts)
+        run: pnpm run build:tsc
+
       - name: Wait for Postgres
         run: |
           set -e
