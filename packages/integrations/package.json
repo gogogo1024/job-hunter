@@ -14,5 +14,5 @@
     "@job-hunter/schema": "workspace:*"
   },
   "exports": { ".": "./dist/index.js" },
-  "types": "./dist/index.d.ts"
+  "types": "./index.d.ts"
 }
