@@ -1,4 +1,4 @@
-import type { Job, JobLevel, Currency } from "@job-hunter/shared";
+import type { Job, JobLevel, Currency, JobLocation } from "@job-hunter/shared";
 
 export interface JobSearchQuery {
   countries?: string[];
@@ -21,11 +21,11 @@ const normalize = (value: string): string => value.trim().toLowerCase();
 export function matchesHardFilters(job: Job, query: JobSearchQuery): boolean {
   if (query.countries?.length) {
     const allowed = new Set(query.countries.map(normalize));
-    if (!job.locations.some((location) => location.country && allowed.has(normalize(location.country)))) return false;
+    if (!job.locations.some((location: JobLocation) => location.country && allowed.has(normalize(location.country)))) return false;
   }
   if (query.cities?.length) {
     const allowed = new Set(query.cities.map(normalize));
-    if (!job.locations.some((location) => location.city && allowed.has(normalize(location.city)))) return false;
+    if (!job.locations.some((location: JobLocation) => location.city && allowed.has(normalize(location.city)))) return false;
   }
   if (query.levels?.length && !query.levels.includes(job.level)) return false;
   if (query.workModes?.length && !query.workModes.some((mode) => job.workModes.includes(mode))) return false;

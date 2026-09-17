@@ -213,7 +213,13 @@ importers:
         specifier: latest
         version: 4.6.5
 
-  packages/shared: {}
+  packages/shared:
+    dependencies:
+      '@job-hunter/types':
+        specifier: workspace:*
+        version: link:../types
+
+  packages/types: {}
 
 packages:
 

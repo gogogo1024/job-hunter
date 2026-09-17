@@ -1,0 +1,14 @@
+{
+  "name": "@job-hunter/types",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "exports": { ".": "./dist/index.js" },
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json",
+    "dev": "tsc -b tsconfig.build.json --watch",
+    "typecheck": "tsc --noEmit"
+  }
+}
