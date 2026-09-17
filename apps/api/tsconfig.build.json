@@ -7,6 +7,13 @@
     "outDir": "dist",
     "rootDir": "src"
   },
+  "references": [
+    { "path": "../../packages/types/tsconfig.build.json" },
+    { "path": "../../packages/shared/tsconfig.build.json" },
+    { "path": "../../packages/schema/tsconfig.build.json" },
+    { "path": "../../packages/db/tsconfig.build.json" },
+    { "path": "../../packages/domain/tsconfig.build.json" }
+  ],
   "include": ["src/**/*"],
   "exclude": [
     "src/**/__tests__/**",
