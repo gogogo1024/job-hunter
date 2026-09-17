@@ -51,6 +51,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build types package first (produce .d.ts)
+        run: |
+          pnpm --filter @job-hunter/types build
+          echo "Types dist contents:" && ls -la packages/types/dist || true
+
       - name: Build shared package first (produce .d.ts)
         run: |
           pnpm --filter @job-hunter/shared build
