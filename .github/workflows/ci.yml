@@ -58,8 +58,10 @@ jobs:
 
       - name: Workspace build (produce .d.ts)
         run: |
-          echo "Building remaining workspace packages"
-          pnpm -w -r --filter '!@job-hunter/types' build
+          echo "Building remaining workspace packages (exclude root to avoid turbo rebuilding @job-hunter/types)"
+          # Exclude the root workspace package (job-hunter) because its `build` runs `turbo build`
+          # which would re-run @job-hunter/types; run package-level builds only.
+          pnpm -w -r --filter '!@job-hunter/types' --filter '!job-hunter' build
 
       - name: Wait for Postgres
         run: |
