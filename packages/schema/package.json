@@ -7,6 +7,13 @@
   "type": "module",
   "scripts": { "build": "tsc -b tsconfig.build.json", "dev": "tsc -b tsconfig.build.json --watch", "typecheck": "tsc --noEmit" },
   "dependencies": { "zod": "latest", "@job-hunter/shared": "workspace:*" },
-  "exports": { ".": "./dist/index.js" },
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "import": "./dist/index.js",
+      "default": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
   "types": "./dist/index.d.ts"
 }
