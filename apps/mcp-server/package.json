@@ -16,7 +16,8 @@
     "@job-hunter/schema": "workspace:*",
     "@job-hunter/shared": "workspace:*",
     "@modelcontextprotocol/server": "latest",
-    "zod": "latest"
+    "zod": "latest",
+    "@job-hunter/types": "workspace:*"
   },
   "devDependencies": {
     "tsx": "latest",
@@ -24,6 +25,8 @@
     "drizzle-orm": "latest"
   },
   "main": "dist/index.js",
-  "exports": { ".": "./dist/index.js" },
+  "exports": {
+    ".": "./dist/index.js"
+  },
   "types": "./dist/index.d.ts"
 }

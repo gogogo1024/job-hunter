@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { enqueueEmail } from "@job-hunter/notifications";
-import type { Job } from "@job-hunter/shared";
+import type { Job } from "@job-hunter/types";
 import type { JobProvider } from "@job-hunter/integrations";
 import {
   upsertJob,

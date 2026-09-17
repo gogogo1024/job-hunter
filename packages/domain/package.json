@@ -17,10 +17,11 @@
     "@langchain/core": "^1.2.11",
     "@langchain/google-genai": "^2.3.2",
     "@langchain/openai": "^1.5.13",
-    "langchain": "^1.5.11"
+    "langchain": "^1.5.11",
+    "@job-hunter/types": "workspace:*"
   },
   "exports": {
     ".": "./dist/index.js"
   },
-  "types": "./index.d.ts"
+  "types": "./dist/index.d.ts"
 }

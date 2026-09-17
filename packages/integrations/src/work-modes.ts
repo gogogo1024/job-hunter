@@ -1,5 +1,5 @@
 import type { AshbyJobPosting } from "./ashby.js";
-import type { WorkMode } from "@job-hunter/shared";
+import type { WorkMode } from "@job-hunter/types";
 
 export function workModes(posting: AshbyJobPosting): WorkMode[] {
   const text = `${posting.location ?? ""} ${(posting.secondaryLocations ?? []).map((x: { location?: string }) => x.location ?? "").join(" ")}`.toLowerCase();

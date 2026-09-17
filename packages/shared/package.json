@@ -18,7 +18,7 @@
   "dependencies": {
     "@job-hunter/types": "workspace:*"
   },
-  "types": "./index.d.ts",
+  "types": "./dist/index.d.ts",
   "typesVersions": {
     "*": {
       "*": [

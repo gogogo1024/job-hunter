@@ -1,4 +1,4 @@
-import type { Job } from "@job-hunter/shared";
+import type { Job } from "@job-hunter/types";
 
 // Use a more flexible type for job parameter to accept both shared Job type and database rows
 type JobLike = Job | any;

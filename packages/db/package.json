@@ -17,12 +17,15 @@
     "@job-hunter/shared": "workspace:*",
     "drizzle-orm": "latest",
     "dotenv": "latest",
-    "postgres": "latest"
+    "postgres": "latest",
+    "@job-hunter/types": "workspace:*"
   },
   "devDependencies": {
     "drizzle-kit": "latest",
     "typescript": "latest"
   },
-  "exports": { ".": "./dist/index.js" },
-  "types": "./index.d.ts"
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "types": "./dist/index.d.ts"
 }

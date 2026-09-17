@@ -2,7 +2,7 @@ import { db } from "./client.js";
 import { jobs } from "./schema.js";
 import { and, eq, or, sql } from "drizzle-orm";
 import { locationsILike, workModesILike, technologiesILike, salaryCondition } from "./sql-fragments.js";
-import type { Job } from "@job-hunter/shared";
+import type { Job } from "@job-hunter/types";
 
 export async function searchJobs(query: any, limit = 50, offset = 0): Promise<Job[]> {
   const whereClauses: any[] = [eq(jobs.status, "open")];

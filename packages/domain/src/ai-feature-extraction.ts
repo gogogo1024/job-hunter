@@ -1,4 +1,4 @@
-import type { Job } from "@job-hunter/shared";
+import type { Job } from "@job-hunter/types";
 import { HumanMessage } from "@langchain/core/messages";
 import { createAIProvider, validateAIProviderConfig, getCurrentProvider } from "./providers/ai-provider-factory.js";
 

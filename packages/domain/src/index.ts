@@ -1,4 +1,4 @@
-import type { Job, JobLevel, Currency, JobLocation } from "@job-hunter/shared";
+import type { Job, JobLevel, Currency, JobLocation } from "@job-hunter/types";
 
 export interface JobSearchQuery {
   countries?: string[];

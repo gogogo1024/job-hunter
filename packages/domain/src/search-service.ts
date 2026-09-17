@@ -1,7 +1,7 @@
 import type { JobSearchQuery } from "./index.js";
 import { searchJobs as repoSearchJobs } from "@job-hunter/db";
 import { matchesHardFilters } from "./index.js";
-import type { Job } from "@job-hunter/shared";
+import type { Job } from "@job-hunter/types";
 
 export async function searchJobs(query: JobSearchQuery, limit = 20, offset = 0): Promise<Job[]> {
   const candidates: Job[] = await repoSearchJobs(query, limit, offset);

@@ -2,7 +2,7 @@ import { and, eq, not, inArray, sql } from "drizzle-orm";
 import type { InferInsertModel } from "drizzle-orm";
 import { db } from "./client.js";
 import { jobs, jobSnapshots, syncRuns, jobSnapshotDiffs, emailJobs, emailEvents, emailSuppression } from "./schema.js";
-import type { Job } from "@job-hunter/shared";
+import type { Job } from "@job-hunter/types";
 import { createHash } from "node:crypto";
 
 export function hashJobContent(job: Job): string {

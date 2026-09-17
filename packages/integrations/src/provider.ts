@@ -1,4 +1,4 @@
-import type { Job } from "@job-hunter/shared";
+import type { Job } from "@job-hunter/types";
 import { normalizeAshbyJob, fetchAshbyJobs, type AshbyJobPosting } from "./ashby.js";
 
 export interface JobProvider {

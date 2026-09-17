@@ -20,14 +20,16 @@
     "dotenv": "latest",
     "bullmq": "latest",
     "ioredis": "latest",
-    "@job-hunter/shared": "workspace:*"
+    "@job-hunter/shared": "workspace:*",
+    "@job-hunter/types": "workspace:*"
   },
   "devDependencies": {
     "tsx": "latest",
     "typescript": "latest"
-  }
-  ,
+  },
   "main": "dist/index.js",
-  "exports": { ".": "./dist/index.js" },
+  "exports": {
+    ".": "./dist/index.js"
+  },
   "types": "./dist/index.d.ts"
 }

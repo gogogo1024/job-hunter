@@ -1,5 +1,5 @@
 // cSpell:words Ashby ashby scrapeable
-import type { Job, JobLevel, JobLocation, WorkMode, Currency } from "@job-hunter/shared";
+import type { Job, JobLevel, JobLocation, WorkMode, Currency } from "@job-hunter/types";
 import { workModes } from "./work-modes.js";
 
 interface AshbyAddress {

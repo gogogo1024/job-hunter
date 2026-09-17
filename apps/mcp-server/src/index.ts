@@ -6,7 +6,7 @@ import { JobSearchQuerySchema } from "@job-hunter/schema";
 import type { JobSearchQuery } from "@job-hunter/domain";
 import { toJobSearchQuery } from "./search-utils.js";
 import { searchJobs as searchService } from "@job-hunter/domain";
-import type { Job } from "@job-hunter/shared";
+import type { Job } from "@job-hunter/types";
 
 const server = new McpServer({
   name: "job-hunter",

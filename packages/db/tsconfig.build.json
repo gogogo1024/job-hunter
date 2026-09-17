@@ -8,6 +8,7 @@
     "rootDir": "src"
   },
   "references": [
+    { "path": "../types/tsconfig.build.json" },
     { "path": "../shared/tsconfig.build.json" },
     { "path": "../schema/tsconfig.build.json" }
   ],
