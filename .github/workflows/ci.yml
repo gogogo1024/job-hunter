@@ -66,8 +66,8 @@ jobs:
 
       - name: Workspace build (produce .d.ts)
         run: |
-          # Perform a workspace-wide build to ensure package build order and outputs
-          pnpm -w -r build
+          # Perform a workspace-wide build but skip @job-hunter/types (already built with project references)
+          pnpm -w -r --filter '!@job-hunter/types' build
           echo "Workspace build finished"
           echo "Types dist contents:" && ls -la packages/types/dist || true
           echo "Shared dist contents:" && ls -la packages/shared/dist || true
