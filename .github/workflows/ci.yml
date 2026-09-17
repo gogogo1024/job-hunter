@@ -51,6 +51,19 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build types package (debug)
+        run: |
+          set -euo pipefail
+          echo "Building @job-hunter/types"
+          pnpm --filter @job-hunter/types build || (
+            echo "types build failed; listing package dir for debug";
+            ls -la packages/types || true;
+            echo "package.json:"; cat packages/types/package.json || true;
+            echo "tsconfig.build.json:"; cat packages/types/tsconfig.build.json || true;
+            exit 1
+          )
+          echo "Types dist contents:" && ls -la packages/types/dist || true
+
       - name: Workspace build (produce .d.ts)
         run: |
           # Perform a workspace-wide build to ensure package build order and outputs
