@@ -54,9 +54,9 @@ jobs:
       - name: Build types package (debug)
         run: |
           set -euo pipefail
-          echo "Building @job-hunter/types"
-          pnpm --filter @job-hunter/types build || (
-            echo "types build failed; listing package dir for debug";
+          echo "Building types via root tsc project references"
+          pnpm run build:tsc || (
+            echo "build:tsc failed; printing debug info";
             ls -la packages/types || true;
             echo "package.json:"; cat packages/types/package.json || true;
             echo "tsconfig.build.json:"; cat packages/types/tsconfig.build.json || true;
