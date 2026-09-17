@@ -51,26 +51,16 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build types package (debug)
+      - name: Build types package
         run: |
           set -euo pipefail
           echo "Building types via root tsc project references"
-          pnpm run build:tsc || (
-            echo "build:tsc failed; printing debug info";
-            ls -la packages/types || true;
-            echo "package.json:"; cat packages/types/package.json || true;
-            echo "tsconfig.build.json:"; cat packages/types/tsconfig.build.json || true;
-            exit 1
-          )
-          echo "Types dist contents:" && ls -la packages/types/dist || true
+          pnpm run build:tsc
 
       - name: Workspace build (produce .d.ts)
         run: |
           # Perform a workspace-wide build but skip @job-hunter/types (already built with project references)
           pnpm -w -r --filter '!@job-hunter/types' build
-          echo "Workspace build finished"
-          echo "Types dist contents:" && ls -la packages/types/dist || true
-          echo "Shared dist contents:" && ls -la packages/shared/dist || true
 
       - name: Wait for Postgres
         run: |
