@@ -53,13 +53,12 @@ jobs:
 
       - name: Build types package
         run: |
-          set -euo pipefail
-          echo "Building types via root tsc project references"
-          pnpm run build:tsc
+          echo "Building @job-hunter/types package first"
+          pnpm --filter @job-hunter/types build
 
       - name: Workspace build (produce .d.ts)
         run: |
-          # Perform a workspace-wide build but skip @job-hunter/types (already built with project references)
+          echo "Building remaining workspace packages"
           pnpm -w -r --filter '!@job-hunter/types' build
 
       - name: Wait for Postgres
